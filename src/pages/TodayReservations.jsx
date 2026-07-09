@@ -97,6 +97,11 @@ function TodayReservations() {
     return unsubscribe
   }, [selectedDate, load])
 
+  useEffect(() => {
+    setEditingId(null)
+    setAddingSlot(null)
+  }, [selectedDate])
+
   const nameFilterActive = nameQuery.trim() !== ''
 
   function matchesQuery(r) {
@@ -141,6 +146,7 @@ function TodayReservations() {
 
   const hasAnyMatch = rows.some((row) => row.type === 'reservation')
   const isToday = selectedDate === today
+  const isPastDate = selectedDate < today
   const currentTime = nowTimeString()
 
   async function handleCancel(reservation) {
@@ -284,7 +290,7 @@ function TodayReservations() {
         <div>
         {rows.map((row) => {
           if (row.type === 'empty') {
-            const isPastSlot = isToday && row.slot < currentTime
+            const isPastSlot = isPastDate || (isToday && row.slot < currentTime)
 
             if (addingSlot === row.slot) {
               return (
@@ -333,7 +339,7 @@ function TodayReservations() {
 
           const r = row.reservation
 
-          if (editingId === r.id) {
+          if (editingId === r.id && !isPastDate) {
             return (
               <div key={row.key} className="bg-white rounded-xl border border-gray-200 mb-4">
                 <EditReservationForm
@@ -386,25 +392,7 @@ function TodayReservations() {
                     <span className="font-semibold text-gray-900">{r.total_price} AZN</span>
                   </div>
 
-                  {r.status === 'confirmed' && (
-                    <div className="mt-3 flex gap-2">
-                      <button
-                        onClick={() => setEditingId(r.id)}
-                        className="flex-1 rounded-lg border border-gray-300 text-gray-700 text-sm font-medium py-1.5 hover:bg-gray-50"
-                      >
-                        Redaktə et
-                      </button>
-                      <button
-                        onClick={() => handleCancel(r)}
-                        disabled={cancellingId === r.id}
-                        className="flex-1 rounded-lg border border-red-200 text-red-600 text-sm font-medium py-1.5 hover:bg-red-50 disabled:opacity-50"
-                      >
-                        {cancellingId === r.id ? 'Ləğv edilir...' : 'Ləğv et'}
-                      </button>
-                    </div>
-                  )}
-
-                  {r.status === 'cancelled' && (
+                  {isPastDate ? (
                     <button
                       onClick={() => handleDelete(r)}
                       disabled={deletingId === r.id}
@@ -412,6 +400,36 @@ function TodayReservations() {
                     >
                       {deletingId === r.id ? 'Silinir...' : 'Sil'}
                     </button>
+                  ) : (
+                    <>
+                      {r.status === 'confirmed' && (
+                        <div className="mt-3 flex gap-2">
+                          <button
+                            onClick={() => setEditingId(r.id)}
+                            className="flex-1 rounded-lg border border-gray-300 text-gray-700 text-sm font-medium py-1.5 hover:bg-gray-50"
+                          >
+                            Redaktə et
+                          </button>
+                          <button
+                            onClick={() => handleCancel(r)}
+                            disabled={cancellingId === r.id}
+                            className="flex-1 rounded-lg border border-red-200 text-red-600 text-sm font-medium py-1.5 hover:bg-red-50 disabled:opacity-50"
+                          >
+                            {cancellingId === r.id ? 'Ləğv edilir...' : 'Ləğv et'}
+                          </button>
+                        </div>
+                      )}
+
+                      {r.status === 'cancelled' && (
+                        <button
+                          onClick={() => handleDelete(r)}
+                          disabled={deletingId === r.id}
+                          className="mt-3 w-full rounded-lg border border-red-200 text-red-600 text-sm font-medium py-1.5 hover:bg-red-50 disabled:opacity-50"
+                        >
+                          {deletingId === r.id ? 'Silinir...' : 'Sil'}
+                        </button>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
