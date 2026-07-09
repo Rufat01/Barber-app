@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import PhoneInput from '../components/PhoneInput'
+import DatePicker from '../components/DatePicker'
 import { todayIsoDate, formatDateAzFull } from '../lib/date'
 import { generateTimeSlots } from '../lib/timeSlots'
 import { getTakenTimes, subscribeToReservations } from '../lib/reservations'
-
-const TIME_SLOTS = generateTimeSlots()
+import { getWorkingHours } from '../lib/barbershop'
 
 function NewReservation() {
   const navigate = useNavigate()
@@ -13,8 +13,17 @@ function NewReservation() {
   const [phone, setPhone] = useState('')
   const [date, setDate] = useState(todayIsoDate())
   const [time, setTime] = useState('')
+  const [timeSlots, setTimeSlots] = useState([])
   const [takenTimes, setTakenTimes] = useState(new Set())
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    getWorkingHours()
+      .then(({ openingTime, closingTime, slotIntervalMinutes }) =>
+        setTimeSlots(generateTimeSlots(openingTime, closingTime, slotIntervalMinutes)),
+      )
+      .catch(() => setTimeSlots(generateTimeSlots()))
+  }, [])
 
   const loadTakenTimes = useCallback(() => {
     getTakenTimes(date)
@@ -81,14 +90,12 @@ function NewReservation() {
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Tarix <span className="text-red-500">*</span>
           </label>
-          <input
-            type="date"
+          <DatePicker
             value={date}
-            onChange={(e) => {
-              setDate(e.target.value)
+            onChange={(nextDate) => {
+              setDate(nextDate)
               setTime('')
             }}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-400"
           />
         </div>
 
@@ -96,8 +103,8 @@ function NewReservation() {
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Saat <span className="text-red-500">*</span>
           </label>
-          <div className="grid grid-cols-4 gap-1.5 max-h-56 overflow-y-auto p-1.5 border border-gray-200 rounded-lg">
-            {TIME_SLOTS.map((slot) => {
+          <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-6 gap-1.5 max-h-56 sm:max-h-64 overflow-y-auto p-1.5 border border-gray-200 rounded-lg">
+            {timeSlots.map((slot) => {
               const isTaken = takenTimes.has(slot)
               const isSelected = time === slot
               return (

@@ -1,5 +1,108 @@
 import { useEffect, useState } from 'react'
 import { getAllServices, createService, updateService, setServiceActive } from '../lib/services'
+import { getWorkingHours, updateWorkingHours } from '../lib/barbershop'
+
+const INTERVAL_OPTIONS = [10, 15, 20, 30, 45, 60]
+
+function WorkingHoursForm() {
+  const [openingTime, setOpeningTime] = useState('13:00')
+  const [closingTime, setClosingTime] = useState('00:00')
+  const [slotIntervalMinutes, setSlotIntervalMinutes] = useState(15)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const [saved, setSaved] = useState(false)
+
+  useEffect(() => {
+    getWorkingHours()
+      .then((hours) => {
+        setOpeningTime(hours.openingTime)
+        setClosingTime(hours.closingTime)
+        setSlotIntervalMinutes(hours.slotIntervalMinutes)
+      })
+      .catch(() => setError('İş saatları yüklənərkən xəta baş verdi'))
+      .finally(() => setLoading(false))
+  }, [])
+
+  async function handleSave(e) {
+    e.preventDefault()
+    setSaving(true)
+    setError('')
+    setSaved(false)
+    try {
+      await updateWorkingHours({ openingTime, closingTime, slotIntervalMinutes })
+      setSaved(true)
+    } catch {
+      setError('Yadda saxlanılarkən xəta baş verdi')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="mb-4 bg-white rounded-xl border border-gray-200 p-4">
+        <p className="text-gray-500 text-sm">Yüklənir...</p>
+      </div>
+    )
+  }
+
+  return (
+    <form onSubmit={handleSave} className="mb-4 bg-white rounded-xl border border-gray-200 p-4 space-y-3">
+      <h2 className="text-sm font-bold text-gray-900">İş saatları</h2>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div>
+          <label className="block text-xs font-medium text-gray-600 mb-1">Başlanğıc</label>
+          <input
+            type="time"
+            value={openingTime}
+            onChange={(e) => setOpeningTime(e.target.value)}
+            className="w-full rounded-lg border border-gray-300 px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-600 mb-1">Son saat</label>
+          <input
+            type="time"
+            value={closingTime}
+            onChange={(e) => setClosingTime(e.target.value)}
+            className="w-full rounded-lg border border-gray-300 px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-600 mb-1">İnterval</label>
+          <select
+            value={slotIntervalMinutes}
+            onChange={(e) => setSlotIntervalMinutes(Number(e.target.value))}
+            className="w-full rounded-lg border border-gray-300 px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400"
+          >
+            {INTERVAL_OPTIONS.map((minutes) => (
+              <option key={minutes} value={minutes}>
+                {minutes} dəq
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <p className="text-xs text-gray-400">
+        Son saat başlanğıcdan kiçik və ya bərabərdirsə (məs. 13:00 – 00:00), gecə yarısından sonra bitən iş
+        günü kimi qəbul olunur.
+      </p>
+
+      {error && <p className="text-sm text-red-500">{error}</p>}
+      {saved && <p className="text-sm text-green-600">Yadda saxlanıldı</p>}
+
+      <button
+        type="submit"
+        disabled={saving}
+        className="rounded-lg bg-gray-900 text-white text-sm font-medium px-4 py-2 hover:bg-gray-800 disabled:opacity-50"
+      >
+        {saving ? 'Yadda saxlanılır...' : 'Yadda saxla'}
+      </button>
+    </form>
+  )
+}
 
 function ServiceForm({ initialValues, onSubmit, onCancel, submitLabel }) {
   const [name, setName] = useState(initialValues?.name || '')
@@ -140,6 +243,8 @@ function ServicesManagement() {
         )}
       </div>
 
+      <WorkingHoursForm />
+
       {creating && (
         <div className="mb-4">
           <ServiceForm
@@ -165,12 +270,12 @@ function ServicesManagement() {
               />
             </div>
           ) : (
-            <div key={service.id} className="flex items-center justify-between p-3">
-              <div>
+            <div key={service.id} className="flex flex-wrap items-center justify-between gap-2 p-3">
+              <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="text-gray-900">{service.name}</span>
+                  <span className="text-gray-900 wrap-break-word">{service.name}</span>
                   {!service.is_active && (
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">
+                    <span className="shrink-0 text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">
                       Deaktiv
                     </span>
                   )}
@@ -180,7 +285,7 @@ function ServicesManagement() {
                   {service.duration_minutes ? ` · ${service.duration_minutes} dəq` : ''}
                 </div>
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-2 shrink-0">
                 <button
                   onClick={() => setEditingId(service.id)}
                   className="text-sm text-gray-600 hover:text-gray-900 px-2 py-1"
