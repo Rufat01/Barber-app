@@ -4,6 +4,7 @@ import { getActiveServices } from '../lib/services'
 import { getWorkingHours } from '../lib/barbershop'
 import { generateTimeSlots } from '../lib/timeSlots'
 import { getTakenTimes, updateReservation } from '../lib/reservations'
+import { todayIsoDate, nowTimeString } from '../lib/date'
 
 /**
  * `reservation` PostgREST-dən gələn tam obyektdir (bax RESERVATION_SELECT).
@@ -56,6 +57,8 @@ function EditReservationForm({ reservation, onSaved, onCancel }) {
 
   const selectedServices = services.filter((s) => selectedIds.has(s.id))
   const totalPrice = selectedServices.reduce((sum, s) => sum + Number(s.price), 0)
+  const isToday = date === todayIsoDate()
+  const currentTime = nowTimeString()
 
   async function handleSave() {
     if (!time) {
@@ -96,6 +99,7 @@ function EditReservationForm({ reservation, onSaved, onCancel }) {
             setDate(nextDate)
             setTime('')
           }}
+          minDate={todayIsoDate()}
         />
       </div>
 
@@ -103,16 +107,17 @@ function EditReservationForm({ reservation, onSaved, onCancel }) {
         <label className="block text-xs font-medium text-gray-600 mb-1">Saat</label>
         <div className="grid grid-cols-4 gap-1.5 max-h-40 overflow-y-auto p-1.5 border border-gray-200 rounded-lg bg-white">
           {timeSlots.map((slot) => {
-            const isTaken = takenTimes.has(slot)
+            const isPast = isToday && slot < currentTime
+            const isDisabled = takenTimes.has(slot) || isPast
             const isSelected = time === slot
             return (
               <button
                 key={slot}
                 type="button"
-                disabled={isTaken}
+                disabled={isDisabled}
                 onClick={() => setTime(slot)}
                 className={`rounded-lg px-1.5 py-1 text-xs font-medium border ${
-                  isTaken
+                  isDisabled
                     ? 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed line-through'
                     : isSelected
                       ? 'bg-gray-900 text-white border-gray-900'

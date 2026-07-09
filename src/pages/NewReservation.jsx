@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import PhoneInput from '../components/PhoneInput'
 import DatePicker from '../components/DatePicker'
-import { todayIsoDate, formatDateAzFull } from '../lib/date'
+import { todayIsoDate, formatDateAzFull, nowTimeString } from '../lib/date'
 import { generateTimeSlots } from '../lib/timeSlots'
 import { getTakenTimes, subscribeToReservations } from '../lib/reservations'
 import { getWorkingHours } from '../lib/barbershop'
@@ -37,10 +37,17 @@ function NewReservation() {
     return unsubscribe
   }, [date, loadTakenTimes])
 
+  const isToday = date === todayIsoDate()
+  const currentTime = nowTimeString()
+
   useEffect(() => {
-    if (time && takenTimes.has(time)) {
+    if (!time) return
+    if (takenTimes.has(time)) {
       setTime('')
       setError('Seçdiyiniz saat artıq tutulub, başqa saat seçin')
+    } else if (isToday && time < currentTime) {
+      setTime('')
+      setError('Seçdiyiniz saat artıq keçib, başqa saat seçin')
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [takenTimes])
@@ -96,6 +103,7 @@ function NewReservation() {
               setDate(nextDate)
               setTime('')
             }}
+            minDate={todayIsoDate()}
           />
         </div>
 
@@ -105,16 +113,17 @@ function NewReservation() {
           </label>
           <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-6 gap-1.5 max-h-56 sm:max-h-64 overflow-y-auto p-1.5 border border-gray-200 rounded-lg">
             {timeSlots.map((slot) => {
-              const isTaken = takenTimes.has(slot)
+              const isPast = isToday && slot < currentTime
+              const isDisabled = takenTimes.has(slot) || isPast
               const isSelected = time === slot
               return (
                 <button
                   key={slot}
                   type="button"
-                  disabled={isTaken}
+                  disabled={isDisabled}
                   onClick={() => setTime(slot)}
                   className={`rounded-lg px-2 py-1.5 text-sm font-medium border ${
-                    isTaken
+                    isDisabled
                       ? 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed line-through'
                       : isSelected
                         ? 'bg-gray-900 text-white border-gray-900'

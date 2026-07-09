@@ -21,19 +21,24 @@ function fromIsoDate(isoDate) {
 }
 
 function DayButton({ day: _day, modifiers, className: _className, ...props }) {
-  const stateClass = modifiers.selected
-    ? 'bg-gray-900 text-white hover:bg-gray-800'
-    : modifiers.today
-      ? 'font-bold text-gray-900 hover:bg-gray-100'
-      : modifiers.outside
-        ? 'text-gray-300 hover:bg-gray-50'
-        : 'text-gray-700 hover:bg-gray-100'
+  const stateClass = modifiers.disabled
+    ? 'text-gray-300 cursor-not-allowed'
+    : modifiers.selected
+      ? 'bg-gray-900 text-white hover:bg-gray-800'
+      : modifiers.today
+        ? 'font-bold text-gray-900 hover:bg-gray-100'
+        : modifiers.outside
+          ? 'text-gray-300 hover:bg-gray-50'
+          : 'text-gray-700 hover:bg-gray-100'
 
   return <button type="button" className={`w-9 h-9 rounded-lg text-sm ${stateClass}`} {...props} />
 }
 
-/** `value`/`onChange` "YYYY-MM-DD" formatındadır. */
-function DatePicker({ value, onChange }) {
+/**
+ * `value`/`onChange` "YYYY-MM-DD" formatındadır.
+ * `minDate` verilsə (məs. "YYYY-MM-DD"), ondan əvvəlki günlər təqvimdə seçilə bilməz.
+ */
+function DatePicker({ value, onChange, minDate }) {
   const [open, setOpen] = useState(false)
   const containerRef = useRef(null)
 
@@ -71,6 +76,7 @@ function DatePicker({ value, onChange }) {
             mode="single"
             selected={value ? fromIsoDate(value) : undefined}
             onSelect={handleSelect}
+            disabled={minDate ? { before: fromIsoDate(minDate) } : undefined}
             weekStartsOn={1}
             components={{ DayButton }}
             formatters={{
