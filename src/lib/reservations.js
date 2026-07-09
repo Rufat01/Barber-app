@@ -28,7 +28,12 @@ export async function createReservation({ customerId, date, time, services }) {
     .select()
     .single()
 
-  if (reservationError) throw reservationError
+  if (reservationError) {
+    if (reservationError.code === '23505') {
+      throw new Error('SLOT_TAKEN')
+    }
+    throw reservationError
+  }
 
   const { error: servicesError } = await supabase.from('reservation_services').insert(
     services.map((s) => ({
@@ -54,6 +59,26 @@ export async function getReservationsByDate(date) {
 
   if (error) throw error
   return data
+}
+
+/** Verilmiş tarixdə artıq tutulmuş (ləğv edilməmiş) saatları "HH:MM" formatında qaytarır. */
+export async function getTakenTimes(date) {
+  const { data, error } = await supabase
+    .from('reservations')
+    .select('time')
+    .eq('barbershop_id', BARBERSHOP_ID)
+    .eq('date', date)
+    .neq('status', 'cancelled')
+
+  if (error) throw error
+  return data.map((r) => r.time.slice(0, 5))
+}
+
+/** Rezervi ləğv edir (real DB-dən silmir, sadəcə statusu "cancelled" edir). */
+export async function cancelReservation(id) {
+  const { error } = await supabase.from('reservations').update({ status: 'cancelled' }).eq('id', id)
+
+  if (error) throw error
 }
 
 /** WhatsApp mesajı göndərildikdən (wa.me linki açıldıqdan) sonra statusu yeniləyir. */

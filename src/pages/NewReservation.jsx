@@ -1,12 +1,11 @@
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import PhoneInput from '../components/PhoneInput'
+import { todayIsoDate, formatDateAzFull } from '../lib/date'
+import { generateTimeSlots } from '../lib/timeSlots'
+import { getTakenTimes, subscribeToReservations } from '../lib/reservations'
 
-function todayIsoDate() {
-  const now = new Date()
-  const offset = now.getTimezoneOffset()
-  return new Date(now.getTime() - offset * 60 * 1000).toISOString().slice(0, 10)
-}
+const TIME_SLOTS = generateTimeSlots()
 
 function NewReservation() {
   const navigate = useNavigate()
@@ -14,7 +13,28 @@ function NewReservation() {
   const [phone, setPhone] = useState('')
   const [date, setDate] = useState(todayIsoDate())
   const [time, setTime] = useState('')
+  const [takenTimes, setTakenTimes] = useState(new Set())
   const [error, setError] = useState('')
+
+  const loadTakenTimes = useCallback(() => {
+    getTakenTimes(date)
+      .then((times) => setTakenTimes(new Set(times)))
+      .catch(() => {})
+  }, [date])
+
+  useEffect(() => {
+    loadTakenTimes()
+    const unsubscribe = subscribeToReservations(date, loadTakenTimes)
+    return unsubscribe
+  }, [date, loadTakenTimes])
+
+  useEffect(() => {
+    if (time && takenTimes.has(time)) {
+      setTime('')
+      setError('Seçdiyiniz saat artıq tutulub, başqa saat seçin')
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [takenTimes])
 
   function handleSubmit(e) {
     e.preventDefault()
@@ -57,30 +77,55 @@ function NewReservation() {
 
         <PhoneInput value={phone} onChange={setPhone} required />
 
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Tarix <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-400"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Saat <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="time"
-              value={time}
-              onChange={(e) => setTime(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-400"
-            />
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Tarix <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="date"
+            value={date}
+            onChange={(e) => {
+              setDate(e.target.value)
+              setTime('')
+            }}
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-400"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Saat <span className="text-red-500">*</span>
+          </label>
+          <div className="grid grid-cols-4 gap-1.5 max-h-56 overflow-y-auto p-1.5 border border-gray-200 rounded-lg">
+            {TIME_SLOTS.map((slot) => {
+              const isTaken = takenTimes.has(slot)
+              const isSelected = time === slot
+              return (
+                <button
+                  key={slot}
+                  type="button"
+                  disabled={isTaken}
+                  onClick={() => setTime(slot)}
+                  className={`rounded-lg px-2 py-1.5 text-sm font-medium border ${
+                    isTaken
+                      ? 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed line-through'
+                      : isSelected
+                        ? 'bg-gray-900 text-white border-gray-900'
+                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  {slot}
+                </button>
+              )
+            })}
           </div>
         </div>
+
+        {date && time && (
+          <div className="rounded-lg bg-blue-50 border border-blue-100 px-3 py-2 text-sm text-blue-700">
+            Seçilmiş vaxt: <strong>{formatDateAzFull(date)}, saat {time}</strong> — düzgün olduğunu yoxlayın
+          </div>
+        )}
 
         {error && <p className="text-sm text-red-500">{error}</p>}
 
