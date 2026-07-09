@@ -2,17 +2,7 @@
 // amma müştəriyə göndərilən mesajın forması (buildReservationMessage) dəyişməz qalacaq.
 
 import { SALON_NAME, BARBER_NAME, SALON_CONTACT_PHONE_DISPLAY } from './constants'
-
-const AZ_MONTHS = [
-  'Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'İyun',
-  'İyul', 'Avqust', 'Sentyabr', 'Oktyabr', 'Noyabr', 'Dekabr',
-]
-
-/** "YYYY-MM-DD" tarixini "9 İyul" formatına çevirir. */
-function formatDateAz(dateStr) {
-  const [, month, day] = dateStr.split('-').map(Number)
-  return `${day} ${AZ_MONTHS[month - 1]}`
-}
+import { formatDateAzShort } from './date'
 
 /** Seçilmiş xidmətlərin ümumi müddətini "X dəqiqə" formatında qaytarır. */
 function formatDuration(services) {
@@ -28,7 +18,7 @@ export function buildReservationMessage({ customerName, date, time, services }) 
     `Hörmətli ${customerName}, sizin *${BARBER_NAME}* ilə *${serviceNames}* rezervasiyanız təsdiq edildi.`,
     ``,
     `* Məkan: ${SALON_NAME}`,
-    `* Rezervasiya tarixi: ${formatDateAz(date)}, ${time}`,
+    `* Rezervasiya tarixi: ${formatDateAzShort(date)}, ${time}`,
     `* Rezervasiya müddəti: ${formatDuration(services)}`,
     ``,
     `Filial ilə əlaqə üçün: ${SALON_CONTACT_PHONE_DISPLAY}`,

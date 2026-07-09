@@ -1,12 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
-import { getReservationsByDate, subscribeToReservations } from '../lib/reservations'
+import { getReservationsByDate, subscribeToReservations, cancelReservation } from '../lib/reservations'
 import { formatPhoneForDisplay } from '../lib/phone'
-
-function todayIsoDate() {
-  const now = new Date()
-  const offset = now.getTimezoneOffset()
-  return new Date(now.getTime() - offset * 60 * 1000).toISOString().slice(0, 10)
-}
+import { todayIsoDate, formatDateAzFull } from '../lib/date'
 
 const STATUS_LABEL = {
   confirmed: 'Təsdiqlənib',
@@ -22,37 +17,93 @@ const WHATSAPP_STATUS_LABEL = {
 }
 
 function TodayReservations() {
-  const date = todayIsoDate()
+  const today = todayIsoDate()
+  const [selectedDate, setSelectedDate] = useState(today)
+  const [nameQuery, setNameQuery] = useState('')
   const [reservations, setReservations] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [cancellingId, setCancellingId] = useState(null)
 
   const load = useCallback(() => {
-    getReservationsByDate(date)
+    setLoading(true)
+    getReservationsByDate(selectedDate)
       .then(setReservations)
       .catch(() => setError('Rezervlər yüklənərkən xəta baş verdi'))
       .finally(() => setLoading(false))
-  }, [date])
+  }, [selectedDate])
 
   useEffect(() => {
     load()
-    const unsubscribe = subscribeToReservations(date, load)
+    const unsubscribe = subscribeToReservations(selectedDate, load)
     return unsubscribe
-  }, [date, load])
+  }, [selectedDate, load])
+
+  const filteredReservations = reservations.filter((r) => {
+    if (!nameQuery.trim()) return true
+    return r.customer?.full_name?.toLowerCase().includes(nameQuery.trim().toLowerCase())
+  })
+
+  async function handleCancel(reservation) {
+    const confirmed = window.confirm(
+      `${reservation.customer?.full_name} — ${reservation.time.slice(0, 5)} rezervini ləğv etmək istədiyinizə əminsiniz?`,
+    )
+    if (!confirmed) return
+
+    setCancellingId(reservation.id)
+    try {
+      await cancelReservation(reservation.id)
+      load()
+    } catch {
+      setError('Rezerv ləğv edilərkən xəta baş verdi')
+    } finally {
+      setCancellingId(null)
+    }
+  }
 
   return (
     <div>
-      <h1 className="text-xl font-bold text-gray-900 mb-4">Bugünkü rezervlər</h1>
+      <h1 className="text-xl font-bold text-gray-900 mb-4">Rezervlər</h1>
+
+      <div className="flex gap-3 mb-2">
+        <input
+          type="text"
+          value={nameQuery}
+          onChange={(e) => setNameQuery(e.target.value)}
+          placeholder="Ad Soyad axtar"
+          className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400"
+        />
+        <input
+          type="date"
+          value={selectedDate}
+          onChange={(e) => setSelectedDate(e.target.value)}
+          className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400"
+        />
+        {selectedDate !== today && (
+          <button
+            onClick={() => setSelectedDate(today)}
+            className="rounded-lg border border-gray-300 text-gray-700 text-sm font-medium px-3 py-2 hover:bg-gray-100"
+          >
+            Bugün
+          </button>
+        )}
+      </div>
+      <p className="text-sm text-gray-500 mb-4">
+        Göstərilən tarix: <strong>{formatDateAzFull(selectedDate)}</strong>
+        {selectedDate === today ? ' (bugün)' : ''}
+      </p>
 
       {loading && <p className="text-gray-500">Yüklənir...</p>}
       {error && <p className="text-sm text-red-500">{error}</p>}
 
-      {!loading && reservations.length === 0 && (
-        <p className="text-gray-500">Bu gün üçün rezerv yoxdur.</p>
+      {!loading && filteredReservations.length === 0 && (
+        <p className="text-gray-500">
+          {nameQuery.trim() ? 'Bu axtarışa uyğun rezerv tapılmadı.' : 'Seçilmiş tarix üçün rezerv yoxdur.'}
+        </p>
       )}
 
       <div className="space-y-3">
-        {reservations.map((r) => (
+        {filteredReservations.map((r) => (
           <div key={r.id} className="bg-white rounded-xl border border-gray-200 p-4">
             <div className="flex items-center justify-between">
               <span className="font-bold text-gray-900">{r.time.slice(0, 5)}</span>
@@ -71,6 +122,15 @@ function TodayReservations() {
               </span>
               <span className="font-medium text-gray-900">{r.total_price} AZN</span>
             </div>
+            {r.status === 'confirmed' && (
+              <button
+                onClick={() => handleCancel(r)}
+                disabled={cancellingId === r.id}
+                className="mt-3 w-full rounded-lg border border-red-200 text-red-600 text-sm font-medium py-1.5 hover:bg-red-50 disabled:opacity-50"
+              >
+                {cancellingId === r.id ? 'Ləğv edilir...' : 'Ləğv et'}
+              </button>
+            )}
           </div>
         ))}
       </div>

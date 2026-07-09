@@ -72,8 +72,12 @@ function SelectServices() {
           totalPrice,
         },
       })
-    } catch {
-      setError('Rezerv yaradılarkən xəta baş verdi, yenidən cəhd edin')
+    } catch (err) {
+      setError(
+        err.message === 'SLOT_TAKEN'
+          ? 'Bu tarix və saat üçün artıq rezerv var. Başqa saat seçin.'
+          : 'Rezerv yaradılarkən xəta baş verdi, yenidən cəhd edin',
+      )
       setSubmitting(false)
     }
   }

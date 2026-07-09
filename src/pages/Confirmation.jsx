@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { buildReservationMessage, buildWaMeLink } from '../lib/whatsapp'
 import { markWhatsappSent } from '../lib/reservations'
 import { formatPhoneForDisplay } from '../lib/phone'
+import { formatDateAzFull } from '../lib/date'
 
 function Confirmation() {
   const location = useLocation()
@@ -42,7 +43,7 @@ function Confirmation() {
       <div className="bg-white rounded-xl border border-gray-200 p-4 space-y-2">
         <div className="flex justify-between text-sm">
           <span className="text-gray-500">Tarix</span>
-          <span className="text-gray-900">{date}</span>
+          <span className="text-gray-900">{formatDateAzFull(date)}</span>
         </div>
         <div className="flex justify-between text-sm">
           <span className="text-gray-500">Saat</span>
