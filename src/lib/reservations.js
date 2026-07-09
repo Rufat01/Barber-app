@@ -61,15 +61,24 @@ export async function getReservationsByDate(date) {
   return data
 }
 
-/** Verilmiş tarixdə artıq tutulmuş (ləğv edilməmiş) saatları "HH:MM" formatında qaytarır. */
-export async function getTakenTimes(date) {
-  const { data, error } = await supabase
+/**
+ * Verilmiş tarixdə artıq tutulmuş (ləğv edilməmiş) saatları "HH:MM" formatında qaytarır.
+ * `excludeReservationId` verilsə, həmin rezerv nəzərə alınmır (rezervi redaktə edərkən
+ * onun öz vaxtı "tutulmuş" kimi göstərilməsin deyə).
+ */
+export async function getTakenTimes(date, excludeReservationId) {
+  let query = supabase
     .from('reservations')
     .select('time')
     .eq('barbershop_id', BARBERSHOP_ID)
     .eq('date', date)
     .neq('status', 'cancelled')
 
+  if (excludeReservationId) {
+    query = query.neq('id', excludeReservationId)
+  }
+
+  const { data, error } = await query
   if (error) throw error
   return data.map((r) => r.time.slice(0, 5))
 }
@@ -79,6 +88,47 @@ export async function cancelReservation(id) {
   const { error } = await supabase.from('reservations').update({ status: 'cancelled' }).eq('id', id)
 
   if (error) throw error
+}
+
+/** Ləğv edilmiş rezervi bazadan tam silir (reservation_services də cascade ilə silinir). */
+export async function deleteReservation(id) {
+  const { error } = await supabase.from('reservations').delete().eq('id', id)
+
+  if (error) throw error
+}
+
+/**
+ * Rezervin tarix/saat və xidmətlərini yeniləyir. `services` [{ id, name, price, duration_minutes }]
+ * siyahısıdır — qiymət bu andakı (redaktə anındakı) qiymət kimi yenidən price_at_booking-ə yazılır.
+ */
+export async function updateReservation(id, { date, time, services }) {
+  const totalPrice = services.reduce((sum, s) => sum + Number(s.price), 0)
+
+  const { error: reservationError } = await supabase
+    .from('reservations')
+    .update({ date, time, total_price: totalPrice })
+    .eq('id', id)
+
+  if (reservationError) {
+    if (reservationError.code === '23505') {
+      throw new Error('SLOT_TAKEN')
+    }
+    throw reservationError
+  }
+
+  const { error: deleteError } = await supabase.from('reservation_services').delete().eq('reservation_id', id)
+  if (deleteError) throw deleteError
+
+  const { error: insertError } = await supabase.from('reservation_services').insert(
+    services.map((s) => ({
+      reservation_id: id,
+      service_id: s.id,
+      price_at_booking: s.price,
+    })),
+  )
+  if (insertError) throw insertError
+
+  return { totalPrice }
 }
 
 /** WhatsApp mesajı göndərildikdən (wa.me linki açıldıqdan) sonra statusu yeniləyir. */
