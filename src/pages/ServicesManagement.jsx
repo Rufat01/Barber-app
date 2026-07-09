@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { getAllServices, createService, updateService, setServiceActive } from '../lib/services'
 import { getWorkingHours, updateWorkingHours } from '../lib/barbershop'
+import Skeleton from '../components/Skeleton'
 
 const INTERVAL_OPTIONS = [10, 15, 20, 30, 45, 60]
 
@@ -41,8 +42,14 @@ function WorkingHoursForm() {
 
   if (loading) {
     return (
-      <div className="mb-4 bg-white rounded-xl border border-gray-200 p-4">
-        <p className="text-gray-500 text-sm">Yüklənir...</p>
+      <div className="mb-4 bg-white rounded-xl border border-gray-200 p-4 space-y-3">
+        <Skeleton className="h-4 w-24" />
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <Skeleton className="h-9 w-full" />
+          <Skeleton className="h-9 w-full" />
+          <Skeleton className="h-9 w-full" />
+        </div>
+        <Skeleton className="h-9 w-28" />
       </div>
     )
   }
@@ -255,53 +262,66 @@ function ServicesManagement() {
         </div>
       )}
 
-      {loading && <p className="text-gray-500">Yüklənir...</p>}
       {error && <p className="text-sm text-red-500">{error}</p>}
 
       <div className="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100">
-        {services.map((service) =>
-          editingId === service.id ? (
-            <div key={service.id} className="p-3">
-              <ServiceForm
-                initialValues={service}
-                submitLabel="Yadda saxla"
-                onSubmit={(values) => handleUpdate(service.id, values)}
-                onCancel={() => setEditingId(null)}
-              />
-            </div>
-          ) : (
-            <div key={service.id} className="flex flex-wrap items-center justify-between gap-2 p-3">
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="text-gray-900 wrap-break-word">{service.name}</span>
-                  {!service.is_active && (
-                    <span className="shrink-0 text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">
-                      Deaktiv
-                    </span>
-                  )}
-                </div>
-                <div className="text-sm text-gray-500">
-                  {service.price} AZN
-                  {service.duration_minutes ? ` · ${service.duration_minutes} dəq` : ''}
-                </div>
+        {loading &&
+          Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="flex items-center justify-between p-3">
+              <div className="space-y-1.5">
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-3 w-20" />
               </div>
-              <div className="flex gap-2 shrink-0">
-                <button
-                  onClick={() => setEditingId(service.id)}
-                  className="text-sm text-gray-600 hover:text-gray-900 px-2 py-1"
-                >
-                  Redaktə
-                </button>
-                <button
-                  onClick={() => handleToggleActive(service)}
-                  className="text-sm text-gray-600 hover:text-gray-900 px-2 py-1"
-                >
-                  {service.is_active ? 'Deaktiv et' : 'Aktiv et'}
-                </button>
+              <div className="flex gap-2">
+                <Skeleton className="h-4 w-14" />
+                <Skeleton className="h-4 w-16" />
               </div>
             </div>
-          ),
-        )}
+          ))}
+        {!loading &&
+          services.map((service) =>
+            editingId === service.id ? (
+              <div key={service.id} className="p-3">
+                <ServiceForm
+                  initialValues={service}
+                  submitLabel="Yadda saxla"
+                  onSubmit={(values) => handleUpdate(service.id, values)}
+                  onCancel={() => setEditingId(null)}
+                />
+              </div>
+            ) : (
+              <div key={service.id} className="flex flex-wrap items-center justify-between gap-2 p-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-900 wrap-break-word">{service.name}</span>
+                    {!service.is_active && (
+                      <span className="shrink-0 text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">
+                        Deaktiv
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-sm text-gray-500">
+                    {service.price} AZN
+                    {service.duration_minutes ? ` · ${service.duration_minutes} dəq` : ''}
+                  </div>
+                </div>
+                <div className="flex gap-2 shrink-0">
+                  <button
+                    onClick={() => setEditingId(service.id)}
+                    className="text-sm text-gray-600 hover:text-gray-900 px-2 py-1"
+                  >
+                    Redaktə
+                  </button>
+                  <button
+                    onClick={() => handleToggleActive(service)}
+                    className="text-sm text-gray-600 hover:text-gray-900 px-2 py-1"
+                  >
+                    {service.is_active ? 'Deaktiv et' : 'Aktiv et'}
+                  </button>
+                </div>
+              </div>
+            ),
+          )}
       </div>
     </div>
   )

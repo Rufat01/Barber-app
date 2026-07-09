@@ -3,6 +3,7 @@ import PhoneInput from './PhoneInput'
 import { getActiveServices } from '../lib/services'
 import { upsertCustomer } from '../lib/customers'
 import { createReservation } from '../lib/reservations'
+import Skeleton from './Skeleton'
 
 /**
  * Cədvəldəki boş bir saat slotundan sürətli rezerv yaratmaq üçün. `date`/`time` sabitdir
@@ -72,7 +73,20 @@ function QuickAddReservationForm({ date, time, onCreated, onCancel }) {
   }
 
   if (loading) {
-    return <p className="text-sm text-gray-500 p-3">Yüklənir...</p>
+    return (
+      <div className="p-3 bg-gray-50 rounded-lg space-y-3">
+        <Skeleton className="h-9 w-full" />
+        <Skeleton className="h-9 w-full" />
+        <div className="bg-white rounded-lg border border-gray-200 divide-y divide-gray-100">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="flex items-center justify-between p-2">
+              <Skeleton className="h-4 w-28" />
+              <Skeleton className="h-4 w-10" />
+            </div>
+          ))}
+        </div>
+      </div>
+    )
   }
 
   return (

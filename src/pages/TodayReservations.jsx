@@ -13,6 +13,7 @@ import { getWorkingHours } from '../lib/barbershop'
 import DatePicker from '../components/DatePicker'
 import EditReservationForm from '../components/EditReservationForm'
 import QuickAddReservationForm from '../components/QuickAddReservationForm'
+import Skeleton from '../components/Skeleton'
 import { buildReservationMessage, buildWaMeLink } from '../lib/whatsapp'
 
 const STATUS_LABEL = {
@@ -33,6 +34,31 @@ const STATUS_DOT_COLOR = {
   cancelled: 'bg-red-400',
   completed: 'bg-green-500',
   no_show: 'bg-amber-400',
+}
+
+function ReservationsSkeleton() {
+  return (
+    <div>
+      {Array.from({ length: 5 }).map((_, i) => (
+        <div key={i} className="flex gap-3">
+          <div className="w-12 sm:w-14 shrink-0 pt-0.5 flex justify-end">
+            <Skeleton className="h-4 w-10" />
+          </div>
+          <div className="relative flex-1 pl-4 sm:pl-5 border-l-2 border-gray-100 pb-4">
+            <span className="absolute -left-1 top-1.5 w-1.5 h-1.5 rounded-full bg-gray-200" />
+            <div className="bg-white rounded-xl border border-gray-200 p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-4 w-16" />
+              </div>
+              <Skeleton className="h-3 w-24" />
+              <Skeleton className="h-3 w-40" />
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
 }
 
 function TodayReservations() {
@@ -246,14 +272,16 @@ function TodayReservations() {
         </div>
       </div>
 
-      {loading && <p className="text-gray-500">Yüklənir...</p>}
-      {error && <p className="text-sm text-red-500">{error}</p>}
+      {error && <p className="text-sm text-red-500 mb-3">{error}</p>}
 
       {!loading && nameFilterActive && !hasAnyMatch && (
         <p className="text-gray-500">Bu axtarışa uyğun rezerv tapılmadı.</p>
       )}
 
-      <div>
+      {loading ? (
+        <ReservationsSkeleton />
+      ) : (
+        <div>
         {rows.map((row) => {
           if (row.type === 'empty') {
             const isPastSlot = isToday && row.slot < currentTime
@@ -390,7 +418,8 @@ function TodayReservations() {
             </div>
           )
         })}
-      </div>
+        </div>
+      )}
     </div>
   )
 }

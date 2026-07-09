@@ -5,6 +5,7 @@ import { getWorkingHours } from '../lib/barbershop'
 import { generateTimeSlots } from '../lib/timeSlots'
 import { getTakenTimes, updateReservation } from '../lib/reservations'
 import { todayIsoDate, nowTimeString } from '../lib/date'
+import Skeleton from './Skeleton'
 
 /**
  * `reservation` PostgREST-dən gələn tam obyektdir (bax RESERVATION_SELECT).
@@ -86,7 +87,33 @@ function EditReservationForm({ reservation, onSaved, onCancel }) {
   }
 
   if (loading) {
-    return <p className="text-sm text-gray-500 p-3">Yüklənir...</p>
+    return (
+      <div className="p-3 bg-gray-50 rounded-lg space-y-3">
+        <div>
+          <Skeleton className="h-3 w-10 mb-1" />
+          <Skeleton className="h-9 w-full" />
+        </div>
+        <div>
+          <Skeleton className="h-3 w-10 mb-1" />
+          <div className="grid grid-cols-4 gap-1.5 p-1.5 border border-gray-200 rounded-lg bg-white">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <Skeleton key={i} className="h-6 w-full" />
+            ))}
+          </div>
+        </div>
+        <div>
+          <Skeleton className="h-3 w-16 mb-1" />
+          <div className="bg-white rounded-lg border border-gray-200 divide-y divide-gray-100">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="flex items-center justify-between p-2">
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-4 w-10" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
