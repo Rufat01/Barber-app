@@ -4,6 +4,7 @@ import { getActiveServices } from '../lib/services'
 import { upsertCustomer } from '../lib/customers'
 import { createReservation } from '../lib/reservations'
 import { formatPhoneForDisplay } from '../lib/phone'
+import Skeleton from '../components/Skeleton'
 
 function SelectServices() {
   const location = useLocation()
@@ -90,7 +91,17 @@ function SelectServices() {
       </p>
 
       {loading ? (
-        <p className="text-gray-500">Yüklənir...</p>
+        <div className="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="flex items-center justify-between p-3">
+              <span className="flex items-center gap-3">
+                <Skeleton className="h-4 w-4" />
+                <Skeleton className="h-4 w-32" />
+              </span>
+              <Skeleton className="h-4 w-10" />
+            </div>
+          ))}
+        </div>
       ) : (
         <div className="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100">
           {services.length === 0 && (

@@ -8,6 +8,16 @@ export function todayIsoDate() {
   return new Intl.DateTimeFormat('en-CA', { timeZone: BUSINESS_TIMEZONE }).format(new Date())
 }
 
+/** Salonun yerləşdiyi saat qurşağına görə hazırkı vaxtı "HH:MM" formatında qaytarır. */
+export function nowTimeString() {
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: BUSINESS_TIMEZONE,
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).format(new Date())
+}
+
 const AZ_MONTHS = [
   'Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'İyun',
   'İyul', 'Avqust', 'Sentyabr', 'Oktyabr', 'Noyabr', 'Dekabr',
