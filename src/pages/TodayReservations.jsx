@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { getReservationsByDate, subscribeToReservations, cancelReservation } from '../lib/reservations'
 import { formatPhoneForDisplay } from '../lib/phone'
-import { todayIsoDate, formatDateAzFull } from '../lib/date'
+import { todayIsoDate } from '../lib/date'
+import DatePicker from '../components/DatePicker'
 
 const STATUS_LABEL = {
   confirmed: 'Təsdiqlənib',
@@ -65,33 +66,28 @@ function TodayReservations() {
     <div>
       <h1 className="text-xl font-bold text-gray-900 mb-4">Rezervlər</h1>
 
-      <div className="flex gap-3 mb-2">
+      <div className="flex flex-col sm:flex-row gap-3 mb-4">
         <input
           type="text"
           value={nameQuery}
           onChange={(e) => setNameQuery(e.target.value)}
           placeholder="Ad Soyad axtar"
-          className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400"
+          className="w-full sm:flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400"
         />
-        <input
-          type="date"
-          value={selectedDate}
-          onChange={(e) => setSelectedDate(e.target.value)}
-          className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400"
-        />
-        {selectedDate !== today && (
-          <button
-            onClick={() => setSelectedDate(today)}
-            className="rounded-lg border border-gray-300 text-gray-700 text-sm font-medium px-3 py-2 hover:bg-gray-100"
-          >
-            Bugün
-          </button>
-        )}
+        <div className="flex gap-3">
+          <div className="flex-1 sm:w-48 sm:flex-none">
+            <DatePicker value={selectedDate} onChange={setSelectedDate} />
+          </div>
+          {selectedDate !== today && (
+            <button
+              onClick={() => setSelectedDate(today)}
+              className="shrink-0 rounded-lg border border-gray-300 text-gray-700 text-sm font-medium px-3 py-2 hover:bg-gray-100"
+            >
+              Bugün
+            </button>
+          )}
+        </div>
       </div>
-      <p className="text-sm text-gray-500 mb-4">
-        Göstərilən tarix: <strong>{formatDateAzFull(selectedDate)}</strong>
-        {selectedDate === today ? ' (bugün)' : ''}
-      </p>
 
       {loading && <p className="text-gray-500">Yüklənir...</p>}
       {error && <p className="text-sm text-red-500">{error}</p>}
