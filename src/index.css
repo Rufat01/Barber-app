@@ -8,3 +8,51 @@ body {
   margin: 0;
   font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
 }
+
+@keyframes checkmark-pop {
+  0% {
+    transform: scale(0.7);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.06);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes checkmark-draw-circle {
+  from {
+    stroke-dashoffset: 152;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes checkmark-draw-check {
+  from {
+    stroke-dashoffset: 40;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.checkmark-badge {
+  animation: checkmark-pop 0.4s ease-out;
+}
+
+.checkmark-circle {
+  stroke-dasharray: 152;
+  stroke-dashoffset: 152;
+  animation: checkmark-draw-circle 0.5s ease-out forwards;
+}
+
+.checkmark-check {
+  stroke-dasharray: 40;
+  stroke-dashoffset: 40;
+  animation: checkmark-draw-check 0.3s 0.5s ease-out forwards;
+}
