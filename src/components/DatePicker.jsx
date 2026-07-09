@@ -78,6 +78,7 @@ function DatePicker({ value, onChange, minDate }) {
             onSelect={handleSelect}
             disabled={minDate ? { before: fromIsoDate(minDate) } : undefined}
             weekStartsOn={1}
+            navLayout="around"
             components={{ DayButton }}
             formatters={{
               formatCaption: (month) => `${AZ_MONTHS[month.getMonth()]} ${month.getFullYear()}`,
@@ -86,9 +87,10 @@ function DatePicker({ value, onChange, minDate }) {
             classNames={{
               months: 'block',
               month: 'relative space-y-2',
-              nav: 'absolute inset-x-0 top-0 px-1 flex items-center justify-between',
-              button_previous: 'h-7 w-7 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-500',
-              button_next: 'h-7 w-7 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-500',
+              button_previous:
+                'absolute left-0 top-0 z-10 h-7 w-7 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-500',
+              button_next:
+                'absolute right-0 top-0 z-10 h-7 w-7 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-500',
               chevron: 'w-4 h-4 fill-gray-500',
               month_caption: 'flex justify-center items-center h-7 font-medium text-sm text-gray-900',
               month_grid: 'border-collapse',
