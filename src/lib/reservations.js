@@ -1,10 +1,30 @@
 import { supabase } from './supabase'
 import { BARBERSHOP_ID } from './constants'
+import { timeToMinutes } from './timeSlots'
+
+function reservationDurationMinutes(r) {
+  const total = (r.reservation_services || []).reduce(
+    (sum, rs) => sum + (rs.duration_minutes ?? rs.service?.duration_minutes ?? 0),
+    0,
+  )
+  // Müddəti bilinməyən rezerv heç olmasa öz başlanğıc vaxtını tutur (köhnə davranışla uyğun).
+  return Math.max(total, 1)
+}
+
+/** Rezerv siyahısından hər birinin tutduğu vaxt aralığını ([start, end) dəqiqə) hesablayır. */
+export function computeOccupiedRanges(reservations) {
+  return reservations
+    .filter((r) => r.status !== 'cancelled')
+    .map((r) => {
+      const start = timeToMinutes(r.time.slice(0, 5))
+      return { start, end: start + reservationDurationMinutes(r), reservationId: r.id }
+    })
+}
 
 const RESERVATION_SELECT = `
   id, date, time, status, total_price, whatsapp_status, whatsapp_sent_at, created_at,
   customer:customers ( id, full_name, phone ),
-  reservation_services ( price_at_booking, service:services ( id, name ) )
+  reservation_services ( price_at_booking, duration_minutes, service:services ( id, name, duration_minutes ) )
 `
 
 /**
@@ -40,6 +60,7 @@ export async function createReservation({ customerId, date, time, services }) {
       reservation_id: reservation.id,
       service_id: s.id,
       price_at_booking: s.price,
+      duration_minutes: s.duration_minutes ?? null,
     })),
   )
 
@@ -62,14 +83,18 @@ export async function getReservationsByDate(date) {
 }
 
 /**
- * Verilmiş tarixdə artıq tutulmuş (ləğv edilməmiş) saatları "HH:MM" formatında qaytarır.
+ * Verilmiş tarixdə artıq tutulmuş saatları "HH:MM" formatında qaytarır. Yalnız dəqiq
+ * eyni saatı deyil, mövcud rezervlərin (öz xidmət müddətlərinə görə) tutduğu bütün
+ * aralığı nəzərə alır — məs. 14:00-da başlayan 45 dəqiqəlik rezerv varsa, 14:30 da
+ * tutulmuş sayılır (əgər `timeSlots` göndərilibsə).
  * `excludeReservationId` verilsə, həmin rezerv nəzərə alınmır (rezervi redaktə edərkən
  * onun öz vaxtı "tutulmuş" kimi göstərilməsin deyə).
+ * `timeSlots` göndərilməzsə, köhnə davranış (yalnız dəqiq saat uyğunluğu) qorunur.
  */
-export async function getTakenTimes(date, excludeReservationId) {
+export async function getTakenTimes(date, { excludeReservationId, timeSlots } = {}) {
   let query = supabase
     .from('reservations')
-    .select('time')
+    .select('id, time, status, reservation_services ( duration_minutes, service:services ( duration_minutes ) )')
     .eq('barbershop_id', BARBERSHOP_ID)
     .eq('date', date)
     .neq('status', 'cancelled')
@@ -80,7 +105,16 @@ export async function getTakenTimes(date, excludeReservationId) {
 
   const { data, error } = await query
   if (error) throw error
-  return data.map((r) => r.time.slice(0, 5))
+
+  if (!timeSlots) {
+    return data.map((r) => r.time.slice(0, 5))
+  }
+
+  const ranges = computeOccupiedRanges(data)
+  return timeSlots.filter((slot) => {
+    const slotMinutes = timeToMinutes(slot)
+    return ranges.some((range) => slotMinutes >= range.start && slotMinutes < range.end)
+  })
 }
 
 /** Rezervi ləğv edir (real DB-dən silmir, sadəcə statusu "cancelled" edir). */
@@ -124,6 +158,7 @@ export async function updateReservation(id, { date, time, services }) {
       reservation_id: id,
       service_id: s.id,
       price_at_booking: s.price,
+      duration_minutes: s.duration_minutes ?? null,
     })),
   )
   if (insertError) throw insertError

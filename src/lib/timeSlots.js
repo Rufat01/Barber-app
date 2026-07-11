@@ -21,3 +21,9 @@ export function generateTimeSlots(openingTime = '13:00', closingTime = '00:00', 
   }
   return slots
 }
+
+/** "HH:MM" formatını gecəyarısından bəri keçən dəqiqələrə çevirir. */
+export function timeToMinutes(time) {
+  const [hours, minutes] = time.split(':').map(Number)
+  return hours * 60 + minutes
+}
