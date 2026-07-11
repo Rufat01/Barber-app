@@ -26,10 +26,10 @@ function NewReservation() {
   }, [])
 
   const loadTakenTimes = useCallback(() => {
-    getTakenTimes(date)
+    getTakenTimes(date, { timeSlots })
       .then((times) => setTakenTimes(new Set(times)))
       .catch(() => {})
-  }, [date])
+  }, [date, timeSlots])
 
   useEffect(() => {
     loadTakenTimes()

@@ -7,6 +7,9 @@ import { getTakenTimes, updateReservation } from '../lib/reservations'
 import { todayIsoDate, nowTimeString } from '../lib/date'
 import Skeleton from './Skeleton'
 
+const DURATION_STEP_MINUTES = 5
+const MIN_DURATION_MINUTES = 5
+
 /**
  * `reservation` PostgREST-dən gələn tam obyektdir (bax RESERVATION_SELECT).
  * `onSaved(totalPrice, selectedServices)` uğurlu yadda saxlamadan sonra çağırılır.
@@ -18,6 +21,13 @@ function EditReservationForm({ reservation, onSaved, onCancel }) {
   const [selectedIds, setSelectedIds] = useState(
     new Set(reservation.reservation_services.map((rs) => rs.service.id)),
   )
+  const [durations, setDurations] = useState(() => {
+    const initial = {}
+    for (const rs of reservation.reservation_services) {
+      initial[rs.service.id] = rs.duration_minutes ?? rs.service.duration_minutes ?? MIN_DURATION_MINUTES
+    }
+    return initial
+  })
   const [timeSlots, setTimeSlots] = useState([])
   const [takenTimes, setTakenTimes] = useState(new Set())
   const [loading, setLoading] = useState(true)
@@ -30,7 +40,12 @@ function EditReservationForm({ reservation, onSaved, onCancel }) {
         const merged = [...activeServices]
         for (const rs of reservation.reservation_services) {
           if (!merged.some((s) => s.id === rs.service.id)) {
-            merged.push({ id: rs.service.id, name: rs.service.name, price: rs.price_at_booking })
+            merged.push({
+              id: rs.service.id,
+              name: rs.service.name,
+              price: rs.price_at_booking,
+              duration_minutes: rs.duration_minutes ?? rs.service.duration_minutes,
+            })
           }
         }
         setServices(merged)
@@ -42,21 +57,39 @@ function EditReservationForm({ reservation, onSaved, onCancel }) {
   }, [])
 
   useEffect(() => {
-    getTakenTimes(date, reservation.id)
+    getTakenTimes(date, { excludeReservationId: reservation.id, timeSlots })
       .then((times) => setTakenTimes(new Set(times)))
       .catch(() => {})
-  }, [date, reservation.id])
+  }, [date, reservation.id, timeSlots])
 
-  function toggleService(id) {
+  function toggleService(service) {
     setSelectedIds((prev) => {
       const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
+      if (next.has(service.id)) {
+        next.delete(service.id)
+      } else {
+        next.add(service.id)
+        setDurations((prevDurations) =>
+          prevDurations[service.id] !== undefined
+            ? prevDurations
+            : { ...prevDurations, [service.id]: service.duration_minutes || MIN_DURATION_MINUTES },
+        )
+      }
       return next
     })
   }
 
-  const selectedServices = services.filter((s) => selectedIds.has(s.id))
+  function adjustDuration(serviceId, delta) {
+    setDurations((prev) => {
+      const current = prev[serviceId] || MIN_DURATION_MINUTES
+      const next = Math.max(MIN_DURATION_MINUTES, current + delta)
+      return { ...prev, [serviceId]: next }
+    })
+  }
+
+  const selectedServices = services
+    .filter((s) => selectedIds.has(s.id))
+    .map((s) => ({ ...s, duration_minutes: durations[s.id] || s.duration_minutes || MIN_DURATION_MINUTES }))
   const totalPrice = selectedServices.reduce((sum, s) => sum + Number(s.price), 0)
   const isToday = date === todayIsoDate()
   const currentTime = nowTimeString()
@@ -161,20 +194,48 @@ function EditReservationForm({ reservation, onSaved, onCancel }) {
       <div>
         <label className="block text-xs font-medium text-gray-600 mb-1">Xidmətlər</label>
         <div className="bg-white rounded-lg border border-gray-200 divide-y divide-gray-100">
-          {services.map((service) => (
-            <label key={service.id} className="flex items-center justify-between p-2 cursor-pointer">
-              <span className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={selectedIds.has(service.id)}
-                  onChange={() => toggleService(service.id)}
-                  className="h-4 w-4"
-                />
-                <span className="text-sm text-gray-900">{service.name}</span>
-              </span>
-              <span className="text-xs text-gray-500">{service.price} AZN</span>
-            </label>
-          ))}
+          {services.map((service) => {
+            const isSelected = selectedIds.has(service.id)
+            return (
+              <div key={service.id} className="p-2">
+                <label className="flex items-center justify-between cursor-pointer">
+                  <span className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => toggleService(service)}
+                      className="h-4 w-4"
+                    />
+                    <span className="text-sm text-gray-900">{service.name}</span>
+                  </span>
+                  <span className="text-xs text-gray-500">{service.price} AZN</span>
+                </label>
+
+                {isSelected && (
+                  <div className="mt-1.5 ml-6 flex items-center gap-2">
+                    <span className="text-xs text-gray-400">Müddət:</span>
+                    <button
+                      type="button"
+                      onClick={() => adjustDuration(service.id, -DURATION_STEP_MINUTES)}
+                      className="w-6 h-6 flex items-center justify-center rounded border border-gray-300 text-gray-600 hover:bg-gray-100 text-sm leading-none"
+                    >
+                      −
+                    </button>
+                    <span className="text-xs font-medium text-gray-900 w-16 text-center">
+                      {durations[service.id] || service.duration_minutes || MIN_DURATION_MINUTES} dəq
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => adjustDuration(service.id, DURATION_STEP_MINUTES)}
+                      className="w-6 h-6 flex items-center justify-center rounded border border-gray-300 text-gray-600 hover:bg-gray-100 text-sm leading-none"
+                    >
+                      +
+                    </button>
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </div>
       </div>
 

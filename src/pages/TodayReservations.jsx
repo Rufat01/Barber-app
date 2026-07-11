@@ -5,10 +5,11 @@ import {
   cancelReservation,
   deleteReservation,
   markWhatsappSent,
+  computeOccupiedRanges,
 } from '../lib/reservations'
 import { formatPhoneForDisplay } from '../lib/phone'
 import { todayIsoDate, nowTimeString } from '../lib/date'
-import { generateTimeSlots } from '../lib/timeSlots'
+import { generateTimeSlots, timeToMinutes } from '../lib/timeSlots'
 import { getWorkingHours } from '../lib/barbershop'
 import DatePicker from '../components/DatePicker'
 import EditReservationForm from '../components/EditReservationForm'
@@ -148,6 +149,12 @@ function TodayReservations() {
   const isToday = selectedDate === today
   const isPastDate = selectedDate < today
   const currentTime = nowTimeString()
+  const occupiedRanges = computeOccupiedRanges(reservations)
+
+  function isSlotOccupied(slot) {
+    const slotMinutes = timeToMinutes(slot)
+    return occupiedRanges.some((range) => slotMinutes >= range.start && slotMinutes < range.end)
+  }
 
   async function handleCancel(reservation) {
     const confirmed = window.confirm(
@@ -290,7 +297,8 @@ function TodayReservations() {
         <div>
         {rows.map((row) => {
           if (row.type === 'empty') {
-            const isPastSlot = isPastDate || (isToday && row.slot < currentTime)
+            const isPastSlot =
+              isPastDate || (isToday && row.slot < currentTime) || isSlotOccupied(row.slot)
 
             if (addingSlot === row.slot) {
               return (
