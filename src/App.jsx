@@ -5,6 +5,7 @@ import SelectServices from './pages/SelectServices'
 import Confirmation from './pages/Confirmation'
 import TodayReservations from './pages/TodayReservations'
 import ServicesManagement from './pages/ServicesManagement'
+import Customers from './pages/Customers'
 
 function App() {
   return (
@@ -15,6 +16,7 @@ function App() {
           <Route path="/rezerv/xidmetler" element={<SelectServices />} />
           <Route path="/rezerv/tesdiq" element={<Confirmation />} />
           <Route path="/bugunku-rezervler" element={<TodayReservations />} />
+          <Route path="/musterilerim" element={<Customers />} />
           <Route path="/xidmetlerim" element={<ServicesManagement />} />
         </Route>
       </Routes>

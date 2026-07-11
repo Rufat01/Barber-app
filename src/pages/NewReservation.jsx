@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import PhoneInput from '../components/PhoneInput'
+import { useLocation, useNavigate } from 'react-router-dom'
+import CustomerPicker from '../components/CustomerPicker'
 import DatePicker from '../components/DatePicker'
 import { todayIsoDate, formatDateAzFull, nowTimeString } from '../lib/date'
 import { generateTimeSlots } from '../lib/timeSlots'
@@ -9,13 +9,25 @@ import { getWorkingHours } from '../lib/barbershop'
 
 function NewReservation() {
   const navigate = useNavigate()
-  const [fullName, setFullName] = useState('')
-  const [phone, setPhone] = useState('')
+  const location = useLocation()
+  const presetCustomer = location.state?.presetCustomer || null
+  const [fullName, setFullName] = useState(presetCustomer?.full_name || '')
+  const [phone, setPhone] = useState(presetCustomer?.phone || '')
   const [date, setDate] = useState(todayIsoDate())
   const [time, setTime] = useState('')
   const [timeSlots, setTimeSlots] = useState([])
   const [takenTimes, setTakenTimes] = useState(new Set())
   const [error, setError] = useState('')
+
+  // Səhifə yenidən mount olunmadan (məs. "Yeni rezerv" naviqasiya linkinə təkrar
+  // klikləmə) hər təzə gəlişdə müştəri sahələrini sıfırlayır/yeniləyir — əks halda
+  // CustomerPicker vizual olaraq təmizlənsə də, köhnə fullName/phone qalıb sessiz
+  // şəkildə səhv müştəriyə rezerv yazıla bilər.
+  useEffect(() => {
+    setFullName(presetCustomer?.full_name || '')
+    setPhone(presetCustomer?.phone || '')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.key])
 
   useEffect(() => {
     getWorkingHours()
@@ -78,20 +90,16 @@ function NewReservation() {
     <div>
       <h1 className="text-xl font-bold text-gray-900 mb-4">Yeni rezerv</h1>
       <form onSubmit={handleSubmit} className="space-y-4 bg-white p-4 rounded-xl border border-gray-200">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Müştərinin adı <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="text"
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-            placeholder="Ad Soyad"
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-400"
-          />
-        </div>
-
-        <PhoneInput value={phone} onChange={setPhone} required />
+        <CustomerPicker
+          key={location.key}
+          fullName={fullName}
+          phone={phone}
+          initialCustomer={presetCustomer}
+          onChange={({ fullName: nextName, phone: nextPhone }) => {
+            setFullName(nextName)
+            setPhone(nextPhone)
+          }}
+        />
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">

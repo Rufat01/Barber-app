@@ -18,6 +18,9 @@ function Layout() {
             <NavLink to="/bugunku-rezervler" className={linkClass}>
               Bugünkü
             </NavLink>
+            <NavLink to="/musterilerim" className={linkClass}>
+              Müştərilərim
+            </NavLink>
             <NavLink to="/xidmetlerim" className={linkClass}>
               Xidmətlərim
             </NavLink>

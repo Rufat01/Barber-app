@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import PhoneInput from './PhoneInput'
+import CustomerPicker from './CustomerPicker'
 import { getActiveServices } from '../lib/services'
 import { upsertCustomer } from '../lib/customers'
 import { createReservation } from '../lib/reservations'
@@ -93,15 +93,14 @@ function QuickAddReservationForm({ date, time, onCreated, onCancel }) {
     <div className="p-3 bg-gray-50 rounded-lg space-y-3">
       <p className="text-xs font-medium text-gray-500">{time} üçün yeni rezerv</p>
 
-      <input
-        type="text"
-        value={fullName}
-        onChange={(e) => setFullName(e.target.value)}
-        placeholder="Ad Soyad"
-        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400"
+      <CustomerPicker
+        fullName={fullName}
+        phone={phone}
+        onChange={({ fullName: nextName, phone: nextPhone }) => {
+          setFullName(nextName)
+          setPhone(nextPhone)
+        }}
       />
-
-      <PhoneInput value={phone} onChange={setPhone} label="Telefon" required />
 
       <div>
         <label className="block text-xs font-medium text-gray-600 mb-1">Xidmətlər</label>
