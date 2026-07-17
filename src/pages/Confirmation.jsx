@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { buildReservationMessage, buildWaMeLink } from '../lib/whatsapp'
 import { sendReservationViaCloudApi } from '../lib/whatsappCloudApi'
@@ -12,6 +12,14 @@ function Confirmation() {
   const { reservationId, fullName, phone, date, time, services, totalPrice } = location.state || {}
   const [sent, setSent] = useState(false)
   const [autoSending, setAutoSending] = useState(true)
+  // Paylaşılan (bir dəfə yaradılan) ref — React StrictMode effekti dev rejimində
+  // mount→cleanup→mount kimi 2 dəfə işə salır. `started` göndərmənin təkrarlanmasının
+  // (real testdə eyni rezervasiyaya 2 mesaj getməsinə səbəb olmuşdu), `cancelled` isə
+  // "sent"/"autoSending" state-lərinin köhnəlmiş (artıq təmizlənmiş) effekt instansından
+  // yenilənməsinin qarşısını alır. `cancelled` hər effekt işə düşəndə yenidən `false`-a
+  // qaytarılır ki, StrictMode-un ikinci (əsl) instansı əvvəlkini "ləğv edilmiş" saymasın —
+  // async cavab yalnız sinxron mount/cleanup dövrü bitdikdən sonra gəldiyi üçün bu təhlükəsizdir.
+  const sendRef = useRef({ started: false, cancelled: false })
 
   useEffect(() => {
     if (!reservationId) {
@@ -25,25 +33,30 @@ function Confirmation() {
   useEffect(() => {
     if (!reservationId) return
 
-    let cancelled = false
+    const state = sendRef.current
+    state.cancelled = false
 
-    sendReservationViaCloudApi({ phone, customerName: fullName, date, time, services }).then(async (result) => {
-      if (cancelled) return
+    if (!state.started) {
+      state.started = true
 
-      if (result.ok) {
-        try {
-          await markWhatsappSent(reservationId, { status: 'sent', messageId: result.messageId })
-        } catch {
-          // Mesaj artıq göndərilib, DB statusunun yenilənməməsi kritik deyil.
+      sendReservationViaCloudApi({ phone, customerName: fullName, date, time, services }).then(async (result) => {
+        if (state.cancelled) return
+
+        if (result.ok) {
+          try {
+            await markWhatsappSent(reservationId, { status: 'sent', messageId: result.messageId })
+          } catch {
+            // Mesaj artıq göndərilib, DB statusunun yenilənməməsi kritik deyil.
+          }
+          if (!state.cancelled) setSent(true)
         }
-        if (!cancelled) setSent(true)
-      }
 
-      if (!cancelled) setAutoSending(false)
-    })
+        if (!state.cancelled) setAutoSending(false)
+      })
+    }
 
     return () => {
-      cancelled = true
+      state.cancelled = true
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reservationId])

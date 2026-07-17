@@ -4,6 +4,8 @@
 
 import { supabase } from './supabase'
 import { formatDateAzShort } from './date'
+import { formatDuration } from './whatsapp'
+import { SALON_NAME, BARBER_NAME, SALON_CONTACT_PHONE_DISPLAY } from './constants'
 
 const TIMEOUT_MS = 8000
 
@@ -14,13 +16,22 @@ function timeoutFallback(ms) {
 export async function sendReservationViaCloudApi({ phone, customerName, date, time, services }) {
   const serviceNames = services.map((s) => s.name).join(', ')
 
+  // Template body-də "{{2}}ilə" (aralarında boşluqsuz) yazılıb — dəyərin sonuna
+  // boşluq əlavə edərək "Rihad Abasov ilə" düzgün görünüşünü təmin edirik.
+  const bodyParams = [
+    customerName,
+    `${BARBER_NAME} `,
+    serviceNames,
+    SALON_NAME,
+    `${formatDateAzShort(date)}, ${time}`,
+    formatDuration(services),
+    SALON_CONTACT_PHONE_DISPLAY,
+  ]
+
   const attempt = (async () => {
     try {
       const { data, error } = await supabase.functions.invoke('send-whatsapp-cloud', {
-        body: {
-          to: phone,
-          bodyParams: [customerName, serviceNames, formatDateAzShort(date), time],
-        },
+        body: { to: phone, bodyParams },
       })
 
       if (error || !data?.ok) {

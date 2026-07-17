@@ -5,7 +5,7 @@ import { SALON_NAME, BARBER_NAME, SALON_CONTACT_PHONE_DISPLAY } from './constant
 import { formatDateAzShort } from './date'
 
 /** Seçilmiş xidmətlərin ümumi müddətini "X dəqiqə" formatında qaytarır. */
-function formatDuration(services) {
+export function formatDuration(services) {
   const totalMinutes = services.reduce((sum, s) => sum + (Number(s.duration_minutes) || 0), 0)
   return totalMinutes > 0 ? `${totalMinutes} dəqiqə` : '-'
 }
