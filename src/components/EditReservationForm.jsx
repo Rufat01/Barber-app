@@ -5,10 +5,8 @@ import { getWorkingHours } from '../lib/barbershop'
 import { generateTimeSlots } from '../lib/timeSlots'
 import { getTakenTimes, updateReservation } from '../lib/reservations'
 import { todayIsoDate, nowTimeString } from '../lib/date'
+import { DURATION_STEP_MINUTES, MIN_DURATION_MINUTES } from '../lib/durations'
 import Skeleton from './Skeleton'
-
-const DURATION_STEP_MINUTES = 5
-const MIN_DURATION_MINUTES = 5
 
 /**
  * `reservation` PostgREST-dən gələn tam obyektdir (bax RESERVATION_SELECT).
