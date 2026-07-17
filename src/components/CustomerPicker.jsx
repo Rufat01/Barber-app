@@ -10,7 +10,7 @@ import { formatPhoneForDisplay } from '../lib/phone'
  * `fullName`/`phone` və `onChange({ fullName, phone })` valideynlə idarə olunur.
  * `initialCustomer` verilsə (məs. "Müştərilərim" səhifəsindən keçiddə), seçilmiş kimi başlayır.
  */
-function CustomerPicker({ fullName, phone, onChange, initialCustomer = null }) {
+function CustomerPicker({ barbershopId, fullName, phone, onChange, initialCustomer = null }) {
   const [mode, setMode] = useState('search') // 'search' | 'manual'
   const [query, setQuery] = useState(initialCustomer?.full_name || '')
   const [results, setResults] = useState([])
@@ -37,13 +37,13 @@ function CustomerPicker({ fullName, phone, onChange, initialCustomer = null }) {
     }
     setSearching(true)
     const timeout = setTimeout(() => {
-      searchCustomers(trimmed)
+      searchCustomers(barbershopId, trimmed)
         .then(setResults)
         .catch(() => setResults([]))
         .finally(() => setSearching(false))
     }, 250)
     return () => clearTimeout(timeout)
-  }, [query, mode, selected])
+  }, [query, mode, selected, barbershopId])
 
   function handleSelect(customer) {
     setSelected(customer)

@@ -12,7 +12,7 @@ import Skeleton from './Skeleton'
  * `reservation` PostgREST-dən gələn tam obyektdir (bax RESERVATION_SELECT).
  * `onSaved(totalPrice, selectedServices)` uğurlu yadda saxlamadan sonra çağırılır.
  */
-function EditReservationForm({ reservation, onSaved, onCancel }) {
+function EditReservationForm({ barbershopId, reservation, onSaved, onCancel }) {
   const [date, setDate] = useState(reservation.date)
   const [time, setTime] = useState(reservation.time.slice(0, 5))
   const [services, setServices] = useState([])
@@ -33,7 +33,7 @@ function EditReservationForm({ reservation, onSaved, onCancel }) {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    Promise.all([getActiveServices(), getWorkingHours()])
+    Promise.all([getActiveServices(barbershopId), getWorkingHours(barbershopId)])
       .then(([activeServices, hours]) => {
         const merged = [...activeServices]
         for (const rs of reservation.reservation_services) {
@@ -55,10 +55,10 @@ function EditReservationForm({ reservation, onSaved, onCancel }) {
   }, [])
 
   useEffect(() => {
-    getTakenTimes(date, { excludeReservationId: reservation.id, timeSlots })
+    getTakenTimes(barbershopId, date, { excludeReservationId: reservation.id, timeSlots })
       .then((times) => setTakenTimes(new Set(times)))
       .catch(() => {})
-  }, [date, reservation.id, timeSlots])
+  }, [barbershopId, date, reservation.id, timeSlots])
 
   function toggleService(service) {
     setSelectedIds((prev) => {

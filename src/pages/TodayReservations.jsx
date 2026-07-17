@@ -3,6 +3,7 @@ import {
   getReservationsByDate,
   subscribeToReservations,
   cancelReservation,
+  confirmReservation,
   deleteReservation,
   markWhatsappSent,
   computeOccupiedRanges,
@@ -11,6 +12,7 @@ import { formatPhoneForDisplay } from '../lib/phone'
 import { todayIsoDate, nowTimeString } from '../lib/date'
 import { generateTimeSlots, timeToMinutes } from '../lib/timeSlots'
 import { getWorkingHours } from '../lib/barbershop'
+import { useAuth } from '../components/AuthProvider'
 import DatePicker from '../components/DatePicker'
 import EditReservationForm from '../components/EditReservationForm'
 import QuickAddReservationForm from '../components/QuickAddReservationForm'
@@ -18,6 +20,7 @@ import Skeleton from '../components/Skeleton'
 import { buildReservationMessage, buildWaMeLink } from '../lib/whatsapp'
 
 const STATUS_LABEL = {
+  pending: 'Təsdiq gözlənilir',
   confirmed: 'Təsdiqlənib',
   cancelled: 'Ləğv edilib',
   completed: 'Tamamlanıb',
@@ -63,6 +66,7 @@ function ReservationsSkeleton() {
 }
 
 function TodayReservations() {
+  const { barbershop } = useAuth()
   const today = todayIsoDate()
   const [selectedDate, setSelectedDate] = useState(today)
   const [nameQuery, setNameQuery] = useState('')
@@ -71,32 +75,34 @@ function TodayReservations() {
   const [error, setError] = useState('')
   const [cancellingId, setCancellingId] = useState(null)
   const [deletingId, setDeletingId] = useState(null)
+  const [approvingId, setApprovingId] = useState(null)
+  const [rejectingId, setRejectingId] = useState(null)
   const [editingId, setEditingId] = useState(null)
   const [awaitingAction, setAwaitingAction] = useState(null)
   const [timeSlots, setTimeSlots] = useState([])
   const [addingSlot, setAddingSlot] = useState(null)
 
   useEffect(() => {
-    getWorkingHours()
+    getWorkingHours(barbershop.id)
       .then(({ openingTime, closingTime, slotIntervalMinutes }) =>
         setTimeSlots(generateTimeSlots(openingTime, closingTime, slotIntervalMinutes)),
       )
       .catch(() => setTimeSlots(generateTimeSlots()))
-  }, [])
+  }, [barbershop.id])
 
   const load = useCallback(() => {
     setLoading(true)
-    getReservationsByDate(selectedDate)
+    getReservationsByDate(barbershop.id, selectedDate)
       .then(setReservations)
       .catch(() => setError('Rezervlər yüklənərkən xəta baş verdi'))
       .finally(() => setLoading(false))
-  }, [selectedDate])
+  }, [barbershop.id, selectedDate])
 
   useEffect(() => {
     load()
-    const unsubscribe = subscribeToReservations(selectedDate, load)
+    const unsubscribe = subscribeToReservations(barbershop.id, selectedDate, load)
     return unsubscribe
-  }, [selectedDate, load])
+  }, [barbershop.id, selectedDate, load])
 
   useEffect(() => {
     setEditingId(null)
@@ -110,7 +116,13 @@ function TodayReservations() {
     return r.customer?.full_name?.toLowerCase().includes(nameQuery.trim().toLowerCase())
   }
 
-  const reservationsByTime = reservations.reduce((map, r) => {
+  // İctimai portaldan gələn "pending" rezervlər berber təsdiqləyənə qədər adi
+  // cədvəldə göstərilmir — ayrıca "Gözləyən sorğular" bölməsində idarə olunur.
+  // Slotu isə tutur (aşağıdakı `occupiedRanges` bütün `reservations`-a əsaslanır).
+  const pendingReservations = reservations.filter((r) => r.status === 'pending')
+  const scheduledReservations = reservations.filter((r) => r.status !== 'pending')
+
+  const reservationsByTime = scheduledReservations.reduce((map, r) => {
     const key = r.time.slice(0, 5)
     if (!map[key]) map[key] = []
     map[key].push(r)
@@ -173,6 +185,49 @@ function TodayReservations() {
     }
   }
 
+  async function handleApprove(reservation) {
+    setApprovingId(reservation.id)
+    try {
+      await confirmReservation(reservation.id)
+      setAwaitingAction({
+        reservationId: reservation.id,
+        fullName: reservation.customer?.full_name,
+        phone: reservation.customer?.phone,
+        services: reservation.reservation_services.map((rs) => ({
+          id: rs.service?.id,
+          name: rs.service?.name,
+          price: rs.price_at_booking,
+          duration_minutes: rs.duration_minutes ?? rs.service?.duration_minutes,
+        })),
+        totalPrice: reservation.total_price,
+        date: reservation.date,
+        time: reservation.time.slice(0, 5),
+      })
+      load()
+    } catch {
+      setError('Təsdiqləmə zamanı xəta baş verdi')
+    } finally {
+      setApprovingId(null)
+    }
+  }
+
+  async function handleReject(reservation) {
+    const confirmed = window.confirm(
+      `${reservation.customer?.full_name} — ${reservation.time.slice(0, 5)} sorğusunu rədd etmək istədiyinizə əminsiniz?`,
+    )
+    if (!confirmed) return
+
+    setRejectingId(reservation.id)
+    try {
+      await cancelReservation(reservation.id)
+      load()
+    } catch {
+      setError('Rədd edilərkən xəta baş verdi')
+    } finally {
+      setRejectingId(null)
+    }
+  }
+
   async function handleDelete(reservation) {
     const confirmed = window.confirm(
       `${reservation.customer?.full_name} — ${reservation.time.slice(0, 5)} rezervini bazadan tam silmək istədiyinizə əminsiniz? Bu geri qaytarıla bilməz.`,
@@ -225,6 +280,9 @@ function TodayReservations() {
       date: awaitingAction.date,
       time: awaitingAction.time,
       services: awaitingAction.services,
+      salonName: barbershop.name,
+      barberName: barbershop.barber_name,
+      contactPhoneDisplay: formatPhoneForDisplay(barbershop.owner_phone),
     })
     const waLink = buildWaMeLink(awaitingAction.phone, message)
     window.open(waLink, '_blank', 'noopener,noreferrer')
@@ -239,6 +297,46 @@ function TodayReservations() {
   return (
     <div>
       <h1 className="text-xl font-bold text-gray-900 mb-4">Rezervlər</h1>
+
+      {pendingReservations.length > 0 && (
+        <div className="mb-4 space-y-2">
+          <h2 className="text-sm font-bold text-gray-900">Gözləyən sorğular ({pendingReservations.length})</h2>
+          {pendingReservations.map((r) => (
+            <div key={r.id} className="bg-amber-50 border border-amber-200 rounded-xl p-3">
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="font-medium text-gray-900 truncate">{r.customer?.full_name}</div>
+                  <div className="text-xs text-gray-500">{formatPhoneForDisplay(r.customer?.phone)}</div>
+                </div>
+                <span className="shrink-0 text-sm font-bold text-gray-900">{r.time.slice(0, 5)}</span>
+              </div>
+              <div className="mt-1.5 text-sm text-gray-600">
+                {r.reservation_services.map((rs) => rs.service?.name).join(', ')}
+              </div>
+              <div className="mt-1.5 flex items-center justify-between">
+                <span className="text-xs text-amber-700">Təsdiq gözlənilir</span>
+                <span className="font-semibold text-gray-900">{r.total_price} AZN</span>
+              </div>
+              <div className="mt-3 flex gap-2">
+                <button
+                  onClick={() => handleApprove(r)}
+                  disabled={approvingId === r.id}
+                  className="flex-1 rounded-lg bg-gray-900 text-white text-sm font-medium py-1.5 hover:bg-gray-800 disabled:opacity-50"
+                >
+                  {approvingId === r.id ? 'Təsdiqlənir...' : 'Təsdiqlə'}
+                </button>
+                <button
+                  onClick={() => handleReject(r)}
+                  disabled={rejectingId === r.id}
+                  className="flex-1 rounded-lg border border-red-200 text-red-600 text-sm font-medium py-1.5 hover:bg-red-50 disabled:opacity-50"
+                >
+                  {rejectingId === r.id ? 'Rədd edilir...' : 'Rədd et'}
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {awaitingAction && (
         <div className="mb-4 bg-blue-50 border border-blue-100 rounded-xl p-4 space-y-3">
@@ -310,6 +408,7 @@ function TodayReservations() {
                     <span className="absolute -left-1.25 top-1 w-2.5 h-2.5 rounded-full ring-4 ring-gray-50 bg-blue-400" />
                     <div className="bg-white rounded-xl border border-gray-200">
                       <QuickAddReservationForm
+                        barbershopId={barbershop.id}
                         date={selectedDate}
                         time={row.slot}
                         onCreated={handleQuickAddCreated}
@@ -351,6 +450,7 @@ function TodayReservations() {
             return (
               <div key={row.key} className="bg-white rounded-xl border border-gray-200 mb-4">
                 <EditReservationForm
+                  barbershopId={barbershop.id}
                   reservation={r}
                   onSaved={(totalPrice, selectedServices, date, time) =>
                     handleEditSaved(r, totalPrice, selectedServices, date, time)

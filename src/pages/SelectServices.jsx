@@ -5,11 +5,13 @@ import { upsertCustomer } from '../lib/customers'
 import { createReservation } from '../lib/reservations'
 import { formatPhoneForDisplay } from '../lib/phone'
 import { DURATION_STEP_MINUTES, MIN_DURATION_MINUTES } from '../lib/durations'
+import { useAuth } from '../components/AuthProvider'
 import Skeleton from '../components/Skeleton'
 
 function SelectServices() {
   const location = useLocation()
   const navigate = useNavigate()
+  const { barbershop } = useAuth()
   const { fullName, phone, date, time } = location.state || {}
 
   const [services, setServices] = useState([])
@@ -25,11 +27,11 @@ function SelectServices() {
       return
     }
 
-    getActiveServices()
+    getActiveServices(barbershop.id)
       .then(setServices)
       .catch(() => setError('Xidmətlər yüklənərkən xəta baş verdi'))
       .finally(() => setLoading(false))
-  }, [fullName, phone, date, time, navigate])
+  }, [fullName, phone, date, time, navigate, barbershop.id])
 
   if (!fullName || !phone || !date || !time) {
     return null
@@ -74,8 +76,9 @@ function SelectServices() {
     setSubmitting(true)
     setError('')
     try {
-      const customer = await upsertCustomer({ fullName, phone })
+      const customer = await upsertCustomer(barbershop.id, { fullName, phone })
       const reservation = await createReservation({
+        barbershopId: barbershop.id,
         customerId: customer.id,
         date,
         time,
