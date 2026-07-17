@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import CustomerPicker from '../components/CustomerPicker'
 import DatePicker from '../components/DatePicker'
+import { useAuth } from '../components/AuthProvider'
 import { todayIsoDate, formatDateAzFull, nowTimeString } from '../lib/date'
 import { generateTimeSlots } from '../lib/timeSlots'
 import { getTakenTimes, subscribeToReservations } from '../lib/reservations'
@@ -10,6 +11,7 @@ import { getWorkingHours } from '../lib/barbershop'
 function NewReservation() {
   const navigate = useNavigate()
   const location = useLocation()
+  const { barbershop } = useAuth()
   const presetCustomer = location.state?.presetCustomer || null
   const [fullName, setFullName] = useState(presetCustomer?.full_name || '')
   const [phone, setPhone] = useState(presetCustomer?.phone || '')
@@ -30,24 +32,24 @@ function NewReservation() {
   }, [location.key])
 
   useEffect(() => {
-    getWorkingHours()
+    getWorkingHours(barbershop.id)
       .then(({ openingTime, closingTime, slotIntervalMinutes }) =>
         setTimeSlots(generateTimeSlots(openingTime, closingTime, slotIntervalMinutes)),
       )
       .catch(() => setTimeSlots(generateTimeSlots()))
-  }, [])
+  }, [barbershop.id])
 
   const loadTakenTimes = useCallback(() => {
-    getTakenTimes(date, { timeSlots })
+    getTakenTimes(barbershop.id, date, { timeSlots })
       .then((times) => setTakenTimes(new Set(times)))
       .catch(() => {})
-  }, [date, timeSlots])
+  }, [barbershop.id, date, timeSlots])
 
   useEffect(() => {
     loadTakenTimes()
-    const unsubscribe = subscribeToReservations(date, loadTakenTimes)
+    const unsubscribe = subscribeToReservations(barbershop.id, date, loadTakenTimes)
     return unsubscribe
-  }, [date, loadTakenTimes])
+  }, [barbershop.id, date, loadTakenTimes])
 
   const isToday = date === todayIsoDate()
   const currentTime = nowTimeString()
@@ -92,6 +94,7 @@ function NewReservation() {
       <form onSubmit={handleSubmit} className="space-y-4 bg-white p-4 rounded-xl border border-gray-200">
         <CustomerPicker
           key={location.key}
+          barbershopId={barbershop.id}
           fullName={fullName}
           phone={phone}
           initialCustomer={presetCustomer}

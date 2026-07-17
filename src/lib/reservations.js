@@ -1,5 +1,4 @@
 import { supabase } from './supabase'
-import { BARBERSHOP_ID } from './constants'
 import { timeToMinutes } from './timeSlots'
 
 function reservationDurationMinutes(r) {
@@ -31,13 +30,13 @@ const RESERVATION_SELECT = `
  * Yeni rezerv yaradır. `services` seçilmiş xidmətlərin [{ id, price }] siyahısıdır —
  * qiymət elə bu andakı (bron anındakı) qiymət kimi price_at_booking-ə yazılır.
  */
-export async function createReservation({ customerId, date, time, services }) {
+export async function createReservation({ barbershopId, customerId, date, time, services }) {
   const totalPrice = services.reduce((sum, s) => sum + Number(s.price), 0)
 
   const { data: reservation, error: reservationError } = await supabase
     .from('reservations')
     .insert({
-      barbershop_id: BARBERSHOP_ID,
+      barbershop_id: barbershopId,
       customer_id: customerId,
       date,
       time,
@@ -70,11 +69,11 @@ export async function createReservation({ customerId, date, time, services }) {
 }
 
 /** Verilmiş tarixdəki bütün rezervləri (müştəri və xidmətlərlə birgə) qaytarır. */
-export async function getReservationsByDate(date) {
+export async function getReservationsByDate(barbershopId, date) {
   const { data, error } = await supabase
     .from('reservations')
     .select(RESERVATION_SELECT)
-    .eq('barbershop_id', BARBERSHOP_ID)
+    .eq('barbershop_id', barbershopId)
     .eq('date', date)
     .order('time', { ascending: true })
 
@@ -91,11 +90,11 @@ export async function getReservationsByDate(date) {
  * onun öz vaxtı "tutulmuş" kimi göstərilməsin deyə).
  * `timeSlots` göndərilməzsə, köhnə davranış (yalnız dəqiq saat uyğunluğu) qorunur.
  */
-export async function getTakenTimes(date, { excludeReservationId, timeSlots } = {}) {
+export async function getTakenTimes(barbershopId, date, { excludeReservationId, timeSlots } = {}) {
   let query = supabase
     .from('reservations')
     .select('id, time, status, reservation_services ( duration_minutes, service:services ( duration_minutes ) )')
-    .eq('barbershop_id', BARBERSHOP_ID)
+    .eq('barbershop_id', barbershopId)
     .eq('date', date)
     .neq('status', 'cancelled')
 
@@ -120,6 +119,13 @@ export async function getTakenTimes(date, { excludeReservationId, timeSlots } = 
 /** Rezervi ləğv edir (real DB-dən silmir, sadəcə statusu "cancelled" edir). */
 export async function cancelReservation(id) {
   const { error } = await supabase.from('reservations').update({ status: 'cancelled' }).eq('id', id)
+
+  if (error) throw error
+}
+
+/** İctimai portaldan gələn "pending" rezervi berber təsdiqləyəndə çağırılır. */
+export async function confirmReservation(id) {
+  const { error } = await supabase.from('reservations').update({ status: 'confirmed' }).eq('id', id)
 
   if (error) throw error
 }
@@ -184,9 +190,12 @@ export async function markWhatsappSent(reservationId, { status = 'sent', message
  * Verilmiş tarix üçün rezervlərdə real-time dəyişiklikləri dinləyir.
  * `onChange` hər hadisədə çağırılır — çağıran tərəf siyahını yenidən yükləməlidir.
  */
-export function subscribeToReservations(date, onChange) {
+export function subscribeToReservations(barbershopId, date, onChange) {
+  // Realtime postgres_changes bir filter şərti qəbul edir, ona görə tenant təcridi
+  // filter stringində deyil, RLS-də təmin olunur (bax 0005_barber_auth_rls.sql) —
+  // Supabase Realtime abunəlik zamanı client-in JWT-sinə uyğun RLS-i tətbiq edir.
   const channel = supabase
-    .channel(`reservations-${date}`)
+    .channel(`reservations-${barbershopId}-${date}`)
     .on(
       'postgres_changes',
       {

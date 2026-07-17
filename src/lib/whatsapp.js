@@ -1,6 +1,5 @@
 // wa.me deep link generasiyası.
 
-import { SALON_NAME, BARBER_NAME, SALON_CONTACT_PHONE_DISPLAY } from './constants'
 import { formatDateAzShort } from './date'
 
 /** Seçilmiş xidmətlərin ümumi müddətini "X dəqiqə" formatında qaytarır. */
@@ -9,18 +8,30 @@ export function formatDuration(services) {
   return totalMinutes > 0 ? `${totalMinutes} dəqiqə` : '-'
 }
 
-export function buildReservationMessage({ customerName, date, time, services }) {
+/**
+ * Mesajın mətni salonun öz brendləmə məlumatlarından (bax `barbershops` cədvəli)
+ * qurulur — hər salon üçün fərqli görünür, sabit qlobal mətn deyil.
+ */
+export function buildReservationMessage({
+  customerName,
+  date,
+  time,
+  services,
+  salonName,
+  barberName,
+  contactPhoneDisplay,
+}) {
   const serviceNames = services.map((s) => s.name).join(', ')
 
   return [
-    `*${SALON_NAME}* sizi salamlayır.`,
-    `Hörmətli ${customerName}, sizin *${BARBER_NAME}* ilə *${serviceNames}* rezervasiyanız təsdiq edildi.`,
+    `*${salonName}* sizi salamlayır.`,
+    `Hörmətli ${customerName}, sizin *${barberName}* ilə *${serviceNames}* rezervasiyanız təsdiq edildi.`,
     ``,
-    `* Məkan: ${SALON_NAME}`,
+    `* Məkan: ${salonName}`,
     `* Rezervasiya tarixi: ${formatDateAzShort(date)}, ${time}`,
     `* Rezervasiya müddəti: ${formatDuration(services)}`,
     ``,
-    `Filial ilə əlaqə üçün: ${SALON_CONTACT_PHONE_DISPLAY}`,
+    `Filial ilə əlaqə üçün: ${contactPhoneDisplay}`,
   ].join('\n')
 }
 

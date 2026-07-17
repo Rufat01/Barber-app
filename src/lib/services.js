@@ -1,12 +1,11 @@
 import { supabase } from './supabase'
-import { BARBERSHOP_ID } from './constants'
 
 /** Rezerv formunda göstərilən aktiv xidmətlər. */
-export async function getActiveServices() {
+export async function getActiveServices(barbershopId) {
   const { data, error } = await supabase
     .from('services')
     .select('id, name, price, duration_minutes')
-    .eq('barbershop_id', BARBERSHOP_ID)
+    .eq('barbershop_id', barbershopId)
     .eq('is_active', true)
     .order('created_at', { ascending: true })
 
@@ -15,22 +14,22 @@ export async function getActiveServices() {
 }
 
 /** "Xidmətlərim" idarəetmə ekranı üçün bütün xidmətlər (aktiv + deaktiv). */
-export async function getAllServices() {
+export async function getAllServices(barbershopId) {
   const { data, error } = await supabase
     .from('services')
     .select('id, name, price, duration_minutes, is_active')
-    .eq('barbershop_id', BARBERSHOP_ID)
+    .eq('barbershop_id', barbershopId)
     .order('created_at', { ascending: true })
 
   if (error) throw error
   return data
 }
 
-export async function createService({ name, price, durationMinutes }) {
+export async function createService(barbershopId, { name, price, durationMinutes }) {
   const { data, error } = await supabase
     .from('services')
     .insert({
-      barbershop_id: BARBERSHOP_ID,
+      barbershop_id: barbershopId,
       name,
       price,
       duration_minutes: durationMinutes || null,

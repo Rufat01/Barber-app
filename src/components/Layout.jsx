@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { NavLink, Outlet, useLocation } from 'react-router-dom'
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { useAuth } from './AuthProvider'
 
 const NAV_ITEMS = [
   { to: '/', label: 'Yeni rezerv', end: true },
@@ -16,7 +17,9 @@ const linkClass = ({ isActive }) =>
 function Layout() {
   const [open, setOpen] = useState(false)
   const location = useLocation()
+  const navigate = useNavigate()
   const menuRef = useRef(null)
+  const { barbershop, signOut } = useAuth()
 
   useEffect(() => {
     setOpen(false)
@@ -31,11 +34,16 @@ function Layout() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [open])
 
+  async function handleSignOut() {
+    await signOut()
+    navigate('/daxil-ol', { replace: true })
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="border-b border-gray-200 bg-white">
         <div className="max-w-2xl mx-auto px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between gap-2">
-          <span className="text-base sm:text-lg font-bold text-gray-900">BarberApp</span>
+          <span className="text-base sm:text-lg font-bold text-gray-900 truncate">{barbershop?.name}</span>
 
           <div className="relative" ref={menuRef}>
             <button
@@ -64,6 +72,13 @@ function Layout() {
                     {item.label}
                   </NavLink>
                 ))}
+                <button
+                  type="button"
+                  onClick={handleSignOut}
+                  className="block w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50"
+                >
+                  Çıxış
+                </button>
               </nav>
             )}
           </div>

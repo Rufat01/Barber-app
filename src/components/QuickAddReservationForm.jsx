@@ -10,7 +10,7 @@ import Skeleton from './Skeleton'
  * Cədvəldəki boş bir saat slotundan sürətli rezerv yaratmaq üçün. `date`/`time` sabitdir
  * (klikləmiş slota uyğun), yalnız müştəri və xidmətlər daxil edilir.
  */
-function QuickAddReservationForm({ date, time, onCreated, onCancel }) {
+function QuickAddReservationForm({ barbershopId, date, time, onCreated, onCancel }) {
   const [fullName, setFullName] = useState('')
   const [phone, setPhone] = useState('')
   const [services, setServices] = useState([])
@@ -21,11 +21,11 @@ function QuickAddReservationForm({ date, time, onCreated, onCancel }) {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    getActiveServices()
+    getActiveServices(barbershopId)
       .then(setServices)
       .catch(() => setError('Xidmətlər yüklənərkən xəta baş verdi'))
       .finally(() => setLoading(false))
-  }, [])
+  }, [barbershopId])
 
   function toggleService(service) {
     setSelectedIds((prev) => {
@@ -74,8 +74,9 @@ function QuickAddReservationForm({ date, time, onCreated, onCancel }) {
     setSaving(true)
     setError('')
     try {
-      const customer = await upsertCustomer({ fullName: fullName.trim(), phone })
+      const customer = await upsertCustomer(barbershopId, { fullName: fullName.trim(), phone })
       const reservation = await createReservation({
+        barbershopId,
         customerId: customer.id,
         date,
         time,
@@ -114,6 +115,7 @@ function QuickAddReservationForm({ date, time, onCreated, onCancel }) {
       <p className="text-xs font-medium text-gray-500">{time} üçün yeni rezerv</p>
 
       <CustomerPicker
+        barbershopId={barbershopId}
         fullName={fullName}
         phone={phone}
         onChange={({ fullName: nextName, phone: nextPhone }) => {

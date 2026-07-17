@@ -3,9 +3,10 @@ import { useNavigate } from 'react-router-dom'
 import { getCustomers, upsertCustomer } from '../lib/customers'
 import PhoneInput from '../components/PhoneInput'
 import { formatPhoneForDisplay } from '../lib/phone'
+import { useAuth } from '../components/AuthProvider'
 import Skeleton from '../components/Skeleton'
 
-function AddCustomerForm({ onCreated, onCancel }) {
+function AddCustomerForm({ barbershopId, onCreated, onCancel }) {
   const [fullName, setFullName] = useState('')
   const [phone, setPhone] = useState('')
   const [saving, setSaving] = useState(false)
@@ -25,7 +26,7 @@ function AddCustomerForm({ onCreated, onCancel }) {
     setSaving(true)
     setError('')
     try {
-      const customer = await upsertCustomer({ fullName: fullName.trim(), phone })
+      const customer = await upsertCustomer(barbershopId, { fullName: fullName.trim(), phone })
       onCreated(customer)
     } catch {
       setError('Yadda saxlanılarkən xəta baş verdi')
@@ -72,6 +73,7 @@ function AddCustomerForm({ onCreated, onCancel }) {
 
 function Customers() {
   const navigate = useNavigate()
+  const { barbershop } = useAuth()
   const [customers, setCustomers] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -79,7 +81,7 @@ function Customers() {
   const [creating, setCreating] = useState(false)
 
   function load() {
-    getCustomers()
+    getCustomers(barbershop.id)
       .then(setCustomers)
       .catch(() => setError('Müştərilər yüklənərkən xəta baş verdi'))
       .finally(() => setLoading(false))
@@ -87,7 +89,8 @@ function Customers() {
 
   useEffect(() => {
     load()
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [barbershop.id])
 
   const filtered = useMemo(() => {
     const trimmed = query.trim().toLowerCase()
@@ -123,7 +126,9 @@ function Customers() {
         )}
       </div>
 
-      {creating && <AddCustomerForm onCreated={handleCreated} onCancel={() => setCreating(false)} />}
+      {creating && (
+        <AddCustomerForm barbershopId={barbershop.id} onCreated={handleCreated} onCancel={() => setCreating(false)} />
+      )}
 
       <input
         type="text"

@@ -4,10 +4,12 @@ import { buildReservationMessage, buildWaMeLink } from '../lib/whatsapp'
 import { markWhatsappSent } from '../lib/reservations'
 import { formatPhoneForDisplay } from '../lib/phone'
 import { formatDateAzFull } from '../lib/date'
+import { useAuth } from '../components/AuthProvider'
 
 function Confirmation() {
   const location = useLocation()
   const navigate = useNavigate()
+  const { barbershop } = useAuth()
   const { reservationId, fullName, phone, date, time, services, totalPrice } = location.state || {}
   const [sent, setSent] = useState(false)
 
@@ -21,7 +23,15 @@ function Confirmation() {
     return null
   }
 
-  const message = buildReservationMessage({ customerName: fullName, date, time, services })
+  const message = buildReservationMessage({
+    customerName: fullName,
+    date,
+    time,
+    services,
+    salonName: barbershop.name,
+    barberName: barbershop.barber_name,
+    contactPhoneDisplay: formatPhoneForDisplay(barbershop.owner_phone),
+  })
   const waLink = buildWaMeLink(phone, message)
 
   async function handleWhatsappClick() {
