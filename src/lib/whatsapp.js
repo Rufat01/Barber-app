@@ -1,5 +1,4 @@
-// wa.me deep link generasiyası. Sonrakı mərhələdə WhatsApp Cloud API-yə keçiləcək,
-// amma müştəriyə göndərilən mesajın forması (buildReservationMessage) dəyişməz qalacaq.
+// wa.me deep link generasiyası.
 
 import { SALON_NAME, BARBER_NAME, SALON_CONTACT_PHONE_DISPLAY } from './constants'
 import { formatDateAzShort } from './date'
