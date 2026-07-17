@@ -3,6 +3,7 @@ import CustomerPicker from './CustomerPicker'
 import { getActiveServices } from '../lib/services'
 import { upsertCustomer } from '../lib/customers'
 import { createReservation } from '../lib/reservations'
+import { DURATION_STEP_MINUTES, MIN_DURATION_MINUTES } from '../lib/durations'
 import Skeleton from './Skeleton'
 
 /**
@@ -14,6 +15,7 @@ function QuickAddReservationForm({ date, time, onCreated, onCancel }) {
   const [phone, setPhone] = useState('')
   const [services, setServices] = useState([])
   const [selectedIds, setSelectedIds] = useState(new Set())
+  const [durations, setDurations] = useState({})
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -25,16 +27,34 @@ function QuickAddReservationForm({ date, time, onCreated, onCancel }) {
       .finally(() => setLoading(false))
   }, [])
 
-  function toggleService(id) {
+  function toggleService(service) {
     setSelectedIds((prev) => {
       const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
+      if (next.has(service.id)) {
+        next.delete(service.id)
+      } else {
+        next.add(service.id)
+        setDurations((prevDurations) =>
+          prevDurations[service.id] !== undefined
+            ? prevDurations
+            : { ...prevDurations, [service.id]: service.duration_minutes || MIN_DURATION_MINUTES },
+        )
+      }
       return next
     })
   }
 
-  const selectedServices = services.filter((s) => selectedIds.has(s.id))
+  function adjustDuration(serviceId, delta) {
+    setDurations((prev) => {
+      const current = prev[serviceId] || MIN_DURATION_MINUTES
+      const next = Math.max(MIN_DURATION_MINUTES, current + delta)
+      return { ...prev, [serviceId]: next }
+    })
+  }
+
+  const selectedServices = services
+    .filter((s) => selectedIds.has(s.id))
+    .map((s) => ({ ...s, duration_minutes: durations[s.id] || s.duration_minutes || MIN_DURATION_MINUTES }))
   const totalPrice = selectedServices.reduce((sum, s) => sum + Number(s.price), 0)
 
   async function handleSubmit() {
@@ -105,20 +125,48 @@ function QuickAddReservationForm({ date, time, onCreated, onCancel }) {
       <div>
         <label className="block text-xs font-medium text-gray-600 mb-1">Xidmətlər</label>
         <div className="bg-white rounded-lg border border-gray-200 divide-y divide-gray-100">
-          {services.map((service) => (
-            <label key={service.id} className="flex items-center justify-between p-2 cursor-pointer">
-              <span className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={selectedIds.has(service.id)}
-                  onChange={() => toggleService(service.id)}
-                  className="h-4 w-4"
-                />
-                <span className="text-sm text-gray-900">{service.name}</span>
-              </span>
-              <span className="text-xs text-gray-500">{service.price} AZN</span>
-            </label>
-          ))}
+          {services.map((service) => {
+            const isSelected = selectedIds.has(service.id)
+            return (
+              <div key={service.id} className="p-2">
+                <label className="flex items-center justify-between cursor-pointer">
+                  <span className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => toggleService(service)}
+                      className="h-4 w-4"
+                    />
+                    <span className="text-sm text-gray-900">{service.name}</span>
+                  </span>
+                  <span className="text-xs text-gray-500">{service.price} AZN</span>
+                </label>
+
+                {isSelected && (
+                  <div className="mt-1.5 ml-6 flex items-center gap-2">
+                    <span className="text-xs text-gray-400">Müddət:</span>
+                    <button
+                      type="button"
+                      onClick={() => adjustDuration(service.id, -DURATION_STEP_MINUTES)}
+                      className="w-6 h-6 flex items-center justify-center rounded border border-gray-300 text-gray-600 hover:bg-gray-100 text-sm leading-none"
+                    >
+                      −
+                    </button>
+                    <span className="text-xs font-medium text-gray-900 w-16 text-center">
+                      {durations[service.id] || service.duration_minutes || MIN_DURATION_MINUTES} dəq
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => adjustDuration(service.id, DURATION_STEP_MINUTES)}
+                      className="w-6 h-6 flex items-center justify-center rounded border border-gray-300 text-gray-600 hover:bg-gray-100 text-sm leading-none"
+                    >
+                      +
+                    </button>
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </div>
       </div>
 
