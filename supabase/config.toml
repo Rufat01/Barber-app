@@ -385,6 +385,12 @@ deno_version = 2
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 
+[functions.whatsapp-webhook]
+# Meta bu URL-ə Supabase-in apikey/Authorization başlıqları ilə müraciət ETMİR,
+# ona görə Supabase-in defolt JWT yoxlaması söndürülür. Doğrulama əvəzinə
+# hub.verify_token (GET) və X-Hub-Signature-256 (POST) ilə edilir.
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   getReservationsByDate,
   subscribeToReservations,
@@ -16,6 +16,7 @@ import EditReservationForm from '../components/EditReservationForm'
 import QuickAddReservationForm from '../components/QuickAddReservationForm'
 import Skeleton from '../components/Skeleton'
 import { buildReservationMessage, buildWaMeLink } from '../lib/whatsapp'
+import { sendReservationViaCloudApi } from '../lib/whatsappCloudApi'
 
 const STATUS_LABEL = {
   confirmed: 'Təsdiqlənib',
@@ -75,6 +76,11 @@ function TodayReservations() {
   const [awaitingAction, setAwaitingAction] = useState(null)
   const [timeSlots, setTimeSlots] = useState([])
   const [addingSlot, setAddingSlot] = useState(null)
+  const [autoSending, setAutoSending] = useState(false)
+  // Ana səhifədəki Confirmation axışı ilə eyni məntiq: əvvəlcə Cloud API ilə avtomatik
+  // göndərməyə cəhd edir, uğursuz olarsa aşağıdakı manual "WhatsApp'dan göndər" banneri
+  // qalır. `ref.id` eyni `awaitingAction` üçün təkrar cəhdin qarşısını alır.
+  const autoSendRef = useRef({ id: null, cancelled: false })
 
   useEffect(() => {
     getWorkingHours()
@@ -218,6 +224,42 @@ function TodayReservations() {
     load()
   }
 
+  useEffect(() => {
+    if (!awaitingAction) return
+
+    const ref = autoSendRef.current
+    if (ref.id === awaitingAction.reservationId) return
+    ref.id = awaitingAction.reservationId
+    ref.cancelled = false
+
+    setAutoSending(true)
+
+    sendReservationViaCloudApi({
+      phone: awaitingAction.phone,
+      customerName: awaitingAction.fullName,
+      date: awaitingAction.date,
+      time: awaitingAction.time,
+      services: awaitingAction.services,
+    }).then(async (result) => {
+      if (ref.cancelled) return
+
+      if (result.ok) {
+        try {
+          await markWhatsappSent(awaitingAction.reservationId, { status: 'sent', messageId: result.messageId })
+        } catch {
+          // Mesaj artıq göndərilib, DB statusunun yenilənməməsi kritik deyil.
+        }
+        setAwaitingAction(null)
+      }
+
+      setAutoSending(false)
+    })
+
+    return () => {
+      ref.cancelled = true
+    }
+  }, [awaitingAction])
+
   async function handleResendWhatsapp() {
     if (!awaitingAction) return
     const message = buildReservationMessage({
@@ -243,22 +285,25 @@ function TodayReservations() {
       {awaitingAction && (
         <div className="mb-4 bg-blue-50 border border-blue-100 rounded-xl p-4 space-y-3">
           <p className="text-sm text-blue-800">
-            <strong>{awaitingAction.fullName}</strong> üçün rezerv yeniləndi. Növbəti addımı seçin:
+            <strong>{awaitingAction.fullName}</strong> üçün rezerv yeniləndi.{' '}
+            {autoSending ? 'Mesaj avtomatik göndərilir...' : 'Növbəti addımı seçin:'}
           </p>
-          <div className="flex flex-col sm:flex-row gap-2">
-            <button
-              onClick={handleResendWhatsapp}
-              className="flex-1 rounded-lg bg-[#25D366] text-white text-sm font-semibold py-2 hover:brightness-95"
-            >
-              WhatsApp'dan göndər
-            </button>
-            <button
-              onClick={() => setAwaitingAction(null)}
-              className="rounded-lg border border-blue-200 text-blue-700 text-sm font-medium px-3 py-2 hover:bg-blue-100"
-            >
-              Bağla
-            </button>
-          </div>
+          {!autoSending && (
+            <div className="flex flex-col sm:flex-row gap-2">
+              <button
+                onClick={handleResendWhatsapp}
+                className="flex-1 rounded-lg bg-[#25D366] text-white text-sm font-semibold py-2 hover:brightness-95"
+              >
+                WhatsApp'dan göndər
+              </button>
+              <button
+                onClick={() => setAwaitingAction(null)}
+                className="rounded-lg border border-blue-200 text-blue-700 text-sm font-medium px-3 py-2 hover:bg-blue-100"
+              >
+                Bağla
+              </button>
+            </div>
+          )}
         </div>
       )}
 

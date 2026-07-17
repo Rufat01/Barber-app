@@ -12,8 +12,15 @@
 const META_GRAPH_VERSION = 'v21.0'
 const META_WHATSAPP_TOKEN = Deno.env.get('META_WHATSAPP_TOKEN')
 const META_PHONE_NUMBER_ID = Deno.env.get('META_PHONE_NUMBER_ID')
-const DEFAULT_TEMPLATE_NAME = Deno.env.get('META_TEMPLATE_NAME') ?? 'reservation_confirmation'
+const DEFAULT_TEMPLATE_NAME = Deno.env.get('META_TEMPLATE_NAME') ?? 'rezervation_template'
 const DEFAULT_TEMPLATE_LANG = Deno.env.get('META_TEMPLATE_LANG') ?? 'az'
+
+// Template-in header komponenti "Location" tipindədir və hər sorğuda göndərilməlidir.
+// Salonun ünvanı rezervasiyadan asılı olmadığı üçün sabitdir.
+const SALON_LATITUDE = Deno.env.get('META_SALON_LATITUDE') ?? '40.528415'
+const SALON_LONGITUDE = Deno.env.get('META_SALON_LONGITUDE') ?? '49.879470'
+const SALON_LOCATION_NAME = Deno.env.get('META_SALON_LOCATION_NAME') ?? 'RR salon'
+const SALON_ADDRESS = Deno.env.get('META_SALON_ADDRESS') ?? 'Bakı, Azərbaycan'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -61,6 +68,20 @@ Deno.serve(async (req) => {
       name: templateName || DEFAULT_TEMPLATE_NAME,
       language: { code: languageCode || DEFAULT_TEMPLATE_LANG },
       components: [
+        {
+          type: 'header',
+          parameters: [
+            {
+              type: 'location',
+              location: {
+                latitude: SALON_LATITUDE,
+                longitude: SALON_LONGITUDE,
+                name: SALON_LOCATION_NAME,
+                address: SALON_ADDRESS,
+              },
+            },
+          ],
+        },
         {
           type: 'body',
           parameters: bodyParams.map((text) => ({ type: 'text', text: String(text) })),
