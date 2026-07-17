@@ -1,7 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { buildReservationMessage, buildWaMeLink } from '../lib/whatsapp'
-import { sendReservationViaCloudApi } from '../lib/whatsappCloudApi'
 import { markWhatsappSent } from '../lib/reservations'
 import { formatPhoneForDisplay } from '../lib/phone'
 import { formatDateAzFull } from '../lib/date'
@@ -11,55 +10,12 @@ function Confirmation() {
   const navigate = useNavigate()
   const { reservationId, fullName, phone, date, time, services, totalPrice } = location.state || {}
   const [sent, setSent] = useState(false)
-  const [autoSending, setAutoSending] = useState(true)
-  // Paylaşılan (bir dəfə yaradılan) ref — React StrictMode effekti dev rejimində
-  // mount→cleanup→mount kimi 2 dəfə işə salır. `started` göndərmənin təkrarlanmasının
-  // (real testdə eyni rezervasiyaya 2 mesaj getməsinə səbəb olmuşdu), `cancelled` isə
-  // "sent"/"autoSending" state-lərinin köhnəlmiş (artıq təmizlənmiş) effekt instansından
-  // yenilənməsinin qarşısını alır. `cancelled` hər effekt işə düşəndə yenidən `false`-a
-  // qaytarılır ki, StrictMode-un ikinci (əsl) instansı əvvəlkini "ləğv edilmiş" saymasın —
-  // async cavab yalnız sinxron mount/cleanup dövrü bitdikdən sonra gəldiyi üçün bu təhlükəsizdir.
-  const sendRef = useRef({ started: false, cancelled: false })
 
   useEffect(() => {
     if (!reservationId) {
       navigate('/', { replace: true })
     }
   }, [reservationId, navigate])
-
-  // Əvvəlcə Meta WhatsApp Cloud API ilə avtomatik göndərməyə cəhd edir. Uğursuz olarsa
-  // (template hələ yoxdur, token təyin olunmayıb, şəbəkə xətası s.) sakitcə aşağıdakı
-  // köhnə wa.me düyməsinə keçir — istifadəçi heç nə itirmir.
-  useEffect(() => {
-    if (!reservationId) return
-
-    const state = sendRef.current
-    state.cancelled = false
-
-    if (!state.started) {
-      state.started = true
-
-      sendReservationViaCloudApi({ phone, customerName: fullName, date, time, services }).then(async (result) => {
-        if (state.cancelled) return
-
-        if (result.ok) {
-          try {
-            await markWhatsappSent(reservationId, { status: 'sent', messageId: result.messageId })
-          } catch {
-            // Mesaj artıq göndərilib, DB statusunun yenilənməməsi kritik deyil.
-          }
-          if (!state.cancelled) setSent(true)
-        }
-
-        if (!state.cancelled) setAutoSending(false)
-      })
-    }
-
-    return () => {
-      state.cancelled = true
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reservationId])
 
   if (!reservationId) {
     return null
@@ -166,34 +122,18 @@ function Confirmation() {
         </div>
       </div>
 
-      {autoSending ? (
-        <div className="mt-5 flex items-center justify-center gap-2 w-full rounded-xl bg-gray-100 text-gray-500 font-medium py-3">
-          <svg
-            className="w-4 h-4 shrink-0 animate-spin"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-          >
-            <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-          </svg>
-          Mesaj avtomatik göndərilir...
-        </div>
-      ) : (
-        <a
-          href={waLink}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={handleWhatsappClick}
-          className="mt-5 flex items-center justify-center gap-2 w-full rounded-xl bg-[#25D366] text-white font-semibold py-3 shadow-sm hover:brightness-95 transition"
-        >
-          <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 2C6.48 2 2 6.48 2 12c0 1.85.5 3.58 1.38 5.07L2 22l5.06-1.35A9.94 9.94 0 0 0 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2zm0 18c-1.6 0-3.09-.45-4.36-1.23l-.31-.18-3.01.8.8-2.93-.2-.31A7.94 7.94 0 0 1 4 12c0-4.41 3.59-8 8-8s8 3.59 8 8-3.59 8-8 8z" />
-          </svg>
-          WhatsApp ilə göndər
-        </a>
-      )}
+      <a
+        href={waLink}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={handleWhatsappClick}
+        className="mt-5 flex items-center justify-center gap-2 w-full rounded-xl bg-[#25D366] text-white font-semibold py-3 shadow-sm hover:brightness-95 transition"
+      >
+        <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 2C6.48 2 2 6.48 2 12c0 1.85.5 3.58 1.38 5.07L2 22l5.06-1.35A9.94 9.94 0 0 0 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2zm0 18c-1.6 0-3.09-.45-4.36-1.23l-.31-.18-3.01.8.8-2.93-.2-.31A7.94 7.94 0 0 1 4 12c0-4.41 3.59-8 8-8s8 3.59 8 8-3.59 8-8 8z" />
+        </svg>
+        WhatsApp ilə göndər
+      </a>
 
       <button
         onClick={() => navigate('/')}
