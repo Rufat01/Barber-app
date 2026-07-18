@@ -15,12 +15,14 @@ function NewReservation() {
   const { barbershop } = useAuth()
   const presetCustomer = location.state?.presetCustomer || null
   const draft = loadReservationDraft(barbershop.id)
-  const initialCustomerForPicker =
-    presetCustomer || (draft?.fullName ? { full_name: draft.fullName, phone: draft.phone } : null)
   const [fullName, setFullName] = useState(presetCustomer?.full_name ?? draft?.fullName ?? '')
   const [phone, setPhone] = useState(presetCustomer?.phone ?? draft?.phone ?? '')
   const [date, setDate] = useState(draft?.date || todayIsoDate())
   const [time, setTime] = useState(draft?.time || '')
+  // CustomerPicker-in redaktə vəziyyəti (axtarış/əl ilə yazma) — geri qayıdanda
+  // müştəri "seçilmiş kart" kimi deyil, olduğu kimi (yazılan mətnlə) bərpa olunsun deyə.
+  const [customerMode, setCustomerMode] = useState(presetCustomer ? 'search' : draft?.customerMode || 'search')
+  const [customerQuery, setCustomerQuery] = useState(presetCustomer ? '' : draft?.customerQuery || '')
   const [timeSlots, setTimeSlots] = useState([])
   const [takenTimes, setTakenTimes] = useState(new Set())
   const [error, setError] = useState('')
@@ -35,14 +37,23 @@ function NewReservation() {
     setPhone(presetCustomer?.phone ?? freshDraft?.phone ?? '')
     setDate(freshDraft?.date || todayIsoDate())
     setTime(freshDraft?.time || '')
+    setCustomerMode(presetCustomer ? 'search' : freshDraft?.customerMode || 'search')
+    setCustomerQuery(presetCustomer ? '' : freshDraft?.customerQuery || '')
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.key])
 
   // Doldurulan sahələri rezervasiya tamamlanana qədər saxlamaq üçün hər dəyişiklikdə
   // qaralamanı yeniləyir.
   useEffect(() => {
-    saveReservationDraft(barbershop.id, { fullName, phone, date, time })
-  }, [barbershop.id, fullName, phone, date, time])
+    saveReservationDraft(barbershop.id, { fullName, phone, date, time, customerMode, customerQuery })
+  }, [barbershop.id, fullName, phone, date, time, customerMode, customerQuery])
+
+  // CustomerPicker `search` rejimində, seçim edilmədən sadəcə axtarış mətni yazılıbsa,
+  // "seçilmiş kart" kimi deyil, məhz həmin mətnlə (əl ilə yazma UI-sında deyil, axtarış
+  // qutusunda) bərpa olunmalıdır. Seçim edilibsə (fullName dolu, mode 'search'), köhnə
+  // seçilmiş müştəri kartı kimi göstərilir.
+  const initialCustomerForPicker =
+    presetCustomer || (customerMode === 'search' && fullName ? { full_name: fullName, phone } : null)
 
   useEffect(() => {
     getWorkingHours(barbershop.id)
@@ -111,9 +122,13 @@ function NewReservation() {
           fullName={fullName}
           phone={phone}
           initialCustomer={initialCustomerForPicker}
-          onChange={({ fullName: nextName, phone: nextPhone }) => {
+          initialMode={presetCustomer ? 'search' : customerMode}
+          initialQuery={presetCustomer ? '' : customerQuery}
+          onChange={({ fullName: nextName, phone: nextPhone, mode: nextMode, query: nextQuery }) => {
             setFullName(nextName)
             setPhone(nextPhone)
+            if (nextMode) setCustomerMode(nextMode)
+            if (nextQuery !== undefined) setCustomerQuery(nextQuery)
           }}
         />
 

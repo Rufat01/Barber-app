@@ -7,15 +7,26 @@ import { formatPhoneForDisplay } from '../lib/phone'
  * Rezerv formlarında müştəri seçimi üçün: əvvəlcə mövcud müştərilər arasında axtarır
  * (belə ki, təkrar müştəri üçün ad/telefon yenidən əl ilə yazılmasın), tapılmasa
  * "Yeni müştəri" rejiminə keçib adi ad/telefon inputlarını göstərir.
- * `fullName`/`phone` və `onChange({ fullName, phone })` valideynlə idarə olunur.
- * `initialCustomer` verilsə (məs. "Müştərilərim" səhifəsindən keçiddə), seçilmiş kimi başlayır.
+ * `fullName`/`phone` və `onChange({ fullName, phone, mode, query })` valideynlə idarə olunur —
+ * `mode`/`query` yalnız valideyndə formu olduğu kimi (redaktə vəziyyətində) bərpa etmək üçün ötürülür.
+ * `initialCustomer` verilsə (məs. "Müştərilərim" səhifəsindən keçiddə və ya əvvəllər siyahıdan seçilmiş
+ * müştərinin bərpası), seçilmiş kimi başlayır. `initialMode`/`initialQuery` isə komponentin əvvəlki
+ * redaktə vəziyyətini (məs. əl ilə yazılan ad/nömrə) olduğu kimi bərpa etmək üçündür.
  */
-function CustomerPicker({ barbershopId, fullName, phone, onChange, initialCustomer = null }) {
-  const [mode, setMode] = useState('search') // 'search' | 'manual'
-  const [query, setQuery] = useState(initialCustomer?.full_name || '')
+function CustomerPicker({
+  barbershopId,
+  fullName,
+  phone,
+  onChange,
+  initialCustomer = null,
+  initialMode = 'search',
+  initialQuery = '',
+}) {
+  const [mode, setMode] = useState(initialMode) // 'search' | 'manual'
+  const [query, setQuery] = useState(initialQuery || initialCustomer?.full_name || '')
   const [results, setResults] = useState([])
   const [searching, setSearching] = useState(false)
-  const [selected, setSelected] = useState(initialCustomer)
+  const [selected, setSelected] = useState(initialMode === 'manual' ? null : initialCustomer)
   const [open, setOpen] = useState(false)
   const containerRef = useRef(null)
 
@@ -45,31 +56,39 @@ function CustomerPicker({ barbershopId, fullName, phone, onChange, initialCustom
     return () => clearTimeout(timeout)
   }, [query, mode, selected, barbershopId])
 
+  // Seçilməmiş axtarış mətni özü heç bir yerdə saxlanmır, ona görə hər dəyişiklikdə
+  // valideynə ötürülür ki, formu tərk edib geri qayıdanda yazılan mətn itməsin.
+  useEffect(() => {
+    if (mode !== 'search' || selected) return
+    onChange({ fullName: '', phone: '', mode: 'search', query })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, mode, selected])
+
   function handleSelect(customer) {
     setSelected(customer)
     setQuery(customer.full_name)
     setOpen(false)
-    onChange({ fullName: customer.full_name, phone: customer.phone })
+    onChange({ fullName: customer.full_name, phone: customer.phone, mode: 'search', query: customer.full_name })
   }
 
   function handleClearSelection() {
     setSelected(null)
     setQuery('')
     setResults([])
-    onChange({ fullName: '', phone: '' })
+    onChange({ fullName: '', phone: '', mode: 'search', query: '' })
   }
 
   function switchToManual() {
     setMode('manual')
     setOpen(false)
-    onChange({ fullName: query.trim(), phone: '' })
+    onChange({ fullName: query.trim(), phone: '', mode: 'manual' })
   }
 
   function switchToSearch() {
     setMode('search')
     setSelected(null)
     setQuery('')
-    onChange({ fullName: '', phone: '' })
+    onChange({ fullName: '', phone: '', mode: 'search', query: '' })
   }
 
   if (mode === 'manual') {
@@ -90,11 +109,11 @@ function CustomerPicker({ barbershopId, fullName, phone, onChange, initialCustom
         <input
           type="text"
           value={fullName}
-          onChange={(e) => onChange({ fullName: e.target.value, phone })}
+          onChange={(e) => onChange({ fullName: e.target.value, phone, mode: 'manual' })}
           placeholder="Ad Soyad"
           className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-400"
         />
-        <PhoneInput value={phone} onChange={(next) => onChange({ fullName, phone: next })} required />
+        <PhoneInput value={phone} onChange={(next) => onChange({ fullName, phone: next, mode: 'manual' })} required />
       </div>
     )
   }
