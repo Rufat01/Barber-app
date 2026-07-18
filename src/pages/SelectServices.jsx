@@ -7,16 +7,20 @@ import { formatPhoneForDisplay } from '../lib/phone'
 import { DURATION_STEP_MINUTES, MIN_DURATION_MINUTES } from '../lib/durations'
 import { useAuth } from '../components/AuthProvider'
 import Skeleton from '../components/Skeleton'
+import { clearReservationDraft, loadReservationDraft, saveReservationDraft } from '../lib/reservationDraft'
 
 function SelectServices() {
   const location = useLocation()
   const navigate = useNavigate()
   const { barbershop } = useAuth()
-  const { fullName, phone, date, time } = location.state || {}
+  // Bu addıma birbaşa keçid (məs. səhifə yenilənməsi) location.state-i itirir —
+  // belə halda yarımçıq qalmış qaralamadan (draft) davam edilir.
+  const draft = loadReservationDraft(barbershop.id)
+  const { fullName, phone, date, time } = location.state?.fullName ? location.state : draft || {}
 
   const [services, setServices] = useState([])
-  const [selectedIds, setSelectedIds] = useState(new Set())
-  const [durations, setDurations] = useState({})
+  const [selectedIds, setSelectedIds] = useState(new Set(draft?.selectedServiceIds || []))
+  const [durations, setDurations] = useState(draft?.durations || {})
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
@@ -32,6 +36,18 @@ function SelectServices() {
       .catch(() => setError('Xidmətlər yüklənərkən xəta baş verdi'))
       .finally(() => setLoading(false))
   }, [fullName, phone, date, time, navigate, barbershop.id])
+
+  useEffect(() => {
+    if (!fullName || !phone || !date || !time) return
+    saveReservationDraft(barbershop.id, {
+      fullName,
+      phone,
+      date,
+      time,
+      selectedServiceIds: Array.from(selectedIds),
+      durations,
+    })
+  }, [barbershop.id, fullName, phone, date, time, selectedIds, durations])
 
   if (!fullName || !phone || !date || !time) {
     return null
@@ -85,6 +101,7 @@ function SelectServices() {
         services: selectedServices,
       })
 
+      clearReservationDraft(barbershop.id)
       navigate('/rezerv/tesdiq', {
         state: {
           reservationId: reservation.id,

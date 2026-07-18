@@ -7,29 +7,42 @@ import { todayIsoDate, formatDateAzFull, nowTimeString } from '../lib/date'
 import { generateTimeSlots } from '../lib/timeSlots'
 import { getTakenTimes, subscribeToReservations } from '../lib/reservations'
 import { getWorkingHours } from '../lib/barbershop'
+import { loadReservationDraft, saveReservationDraft } from '../lib/reservationDraft'
 
 function NewReservation() {
   const navigate = useNavigate()
   const location = useLocation()
   const { barbershop } = useAuth()
   const presetCustomer = location.state?.presetCustomer || null
-  const [fullName, setFullName] = useState(presetCustomer?.full_name || '')
-  const [phone, setPhone] = useState(presetCustomer?.phone || '')
-  const [date, setDate] = useState(todayIsoDate())
-  const [time, setTime] = useState('')
+  const draft = loadReservationDraft(barbershop.id)
+  const initialCustomerForPicker =
+    presetCustomer || (draft?.fullName ? { full_name: draft.fullName, phone: draft.phone } : null)
+  const [fullName, setFullName] = useState(presetCustomer?.full_name ?? draft?.fullName ?? '')
+  const [phone, setPhone] = useState(presetCustomer?.phone ?? draft?.phone ?? '')
+  const [date, setDate] = useState(draft?.date || todayIsoDate())
+  const [time, setTime] = useState(draft?.time || '')
   const [timeSlots, setTimeSlots] = useState([])
   const [takenTimes, setTakenTimes] = useState(new Set())
   const [error, setError] = useState('')
 
   // Səhifə yenidən mount olunmadan (məs. "Yeni rezerv" naviqasiya linkinə təkrar
-  // klikləmə) hər təzə gəlişdə müştəri sahələrini sıfırlayır/yeniləyir — əks halda
-  // CustomerPicker vizual olaraq təmizlənsə də, köhnə fullName/phone qalıb sessiz
-  // şəkildə səhv müştəriyə rezerv yazıla bilər.
+  // klikləmə) hər təzə gəlişdə müştəri sahələrini yükləyir — presetCustomer varsa
+  // ondan, yoxdursa yarımçıq qalmış localStorage qaralamasından (draft), belə ki
+  // rezervasiya tamamlanmayınca doldurulmuş məlumat itməsin.
   useEffect(() => {
-    setFullName(presetCustomer?.full_name || '')
-    setPhone(presetCustomer?.phone || '')
+    const freshDraft = loadReservationDraft(barbershop.id)
+    setFullName(presetCustomer?.full_name ?? freshDraft?.fullName ?? '')
+    setPhone(presetCustomer?.phone ?? freshDraft?.phone ?? '')
+    setDate(freshDraft?.date || todayIsoDate())
+    setTime(freshDraft?.time || '')
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.key])
+
+  // Doldurulan sahələri rezervasiya tamamlanana qədər saxlamaq üçün hər dəyişiklikdə
+  // qaralamanı yeniləyir.
+  useEffect(() => {
+    saveReservationDraft(barbershop.id, { fullName, phone, date, time })
+  }, [barbershop.id, fullName, phone, date, time])
 
   useEffect(() => {
     getWorkingHours(barbershop.id)
@@ -97,7 +110,7 @@ function NewReservation() {
           barbershopId={barbershop.id}
           fullName={fullName}
           phone={phone}
-          initialCustomer={presetCustomer}
+          initialCustomer={initialCustomerForPicker}
           onChange={({ fullName: nextName, phone: nextPhone }) => {
             setFullName(nextName)
             setPhone(nextPhone)
