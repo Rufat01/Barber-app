@@ -7,11 +7,13 @@ import { formatPhoneForDisplay } from '../lib/phone'
  * Rezerv formlarında müştəri seçimi üçün: əvvəlcə mövcud müştərilər arasında axtarır
  * (belə ki, təkrar müştəri üçün ad/telefon yenidən əl ilə yazılmasın), tapılmasa
  * "Yeni müştəri" rejiminə keçib adi ad/telefon inputlarını göstərir.
- * `fullName`/`phone` və `onChange({ fullName, phone, mode, query })` valideynlə idarə olunur —
- * `mode`/`query` yalnız valideyndə formu olduğu kimi (redaktə vəziyyətində) bərpa etmək üçün ötürülür.
+ * `fullName`/`phone` və `onChange({ fullName, phone, mode, query, phoneRaw })` valideynlə idarə
+ * olunur — `mode`/`query`/`phoneRaw` yalnız valideyndə formu olduğu kimi (redaktə vəziyyətində)
+ * bərpa etmək üçün ötürülür. `phoneRaw` xüsusilə vacibdir: nömrə tam yazılana qədər `phone` boş
+ * qalır (bax PhoneInput), ona görə yarımçıq yazılmış rəqəmlər yalnız `phoneRaw` ilə qorunur.
  * `initialCustomer` verilsə (məs. "Müştərilərim" səhifəsindən keçiddə və ya əvvəllər siyahıdan seçilmiş
- * müştərinin bərpası), seçilmiş kimi başlayır. `initialMode`/`initialQuery` isə komponentin əvvəlki
- * redaktə vəziyyətini (məs. əl ilə yazılan ad/nömrə) olduğu kimi bərpa etmək üçündür.
+ * müştərinin bərpası), seçilmiş kimi başlayır. `initialMode`/`initialQuery`/`initialPhoneRaw` isə
+ * komponentin əvvəlki redaktə vəziyyətini (məs. əl ilə yazılan ad/nömrə) olduğu kimi bərpa etmək üçündür.
  */
 function CustomerPicker({
   barbershopId,
@@ -21,6 +23,7 @@ function CustomerPicker({
   initialCustomer = null,
   initialMode = 'search',
   initialQuery = '',
+  initialPhoneRaw = '',
 }) {
   const [mode, setMode] = useState(initialMode) // 'search' | 'manual'
   const [query, setQuery] = useState(initialQuery || initialCustomer?.full_name || '')
@@ -68,27 +71,33 @@ function CustomerPicker({
     setSelected(customer)
     setQuery(customer.full_name)
     setOpen(false)
-    onChange({ fullName: customer.full_name, phone: customer.phone, mode: 'search', query: customer.full_name })
+    onChange({
+      fullName: customer.full_name,
+      phone: customer.phone,
+      mode: 'search',
+      query: customer.full_name,
+      phoneRaw: '',
+    })
   }
 
   function handleClearSelection() {
     setSelected(null)
     setQuery('')
     setResults([])
-    onChange({ fullName: '', phone: '', mode: 'search', query: '' })
+    onChange({ fullName: '', phone: '', mode: 'search', query: '', phoneRaw: '' })
   }
 
   function switchToManual() {
     setMode('manual')
     setOpen(false)
-    onChange({ fullName: query.trim(), phone: '', mode: 'manual' })
+    onChange({ fullName: query.trim(), phone: '', mode: 'manual', phoneRaw: '' })
   }
 
   function switchToSearch() {
     setMode('search')
     setSelected(null)
     setQuery('')
-    onChange({ fullName: '', phone: '', mode: 'search', query: '' })
+    onChange({ fullName: '', phone: '', mode: 'search', query: '', phoneRaw: '' })
   }
 
   if (mode === 'manual') {
@@ -113,7 +122,12 @@ function CustomerPicker({
           placeholder="Ad Soyad"
           className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-400"
         />
-        <PhoneInput value={phone} onChange={(next) => onChange({ fullName, phone: next, mode: 'manual' })} required />
+        <PhoneInput
+          value={phone}
+          initialRawValue={initialPhoneRaw}
+          onChange={(next, raw) => onChange({ fullName, phone: next, mode: 'manual', phoneRaw: raw })}
+          required
+        />
       </div>
     )
   }

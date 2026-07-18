@@ -1,16 +1,24 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { normalizePhone, isValidPhone, formatPhoneForDisplay } from '../lib/phone'
 
 /**
  * `value` və `onChange` normalize edilmiş formatdadır (994XXXXXXXXX və ya '').
  * İstifadəçi istənilən formatda yaza bilər (0501234567, 501234567, +994...),
- * daxili olaraq normalize edilir.
+ * daxili olaraq normalize edilir. Nömrə tam/etibarlı olmayana qədər `value` boş qalır
+ * (normalizePhone natamam inputda null qaytarır) — ona görə yarımçıq yazılmış rəqəmləri
+ * xaricdən bərpa etmək üçün `initialRawValue` və hər dəyişiklikdə xam mətni ötürən
+ * `onChange`-in ikinci arqumenti (raw) istifadə olunur.
  */
-function PhoneInput({ value, onChange, label = 'Telefon nömrəsi', required = false }) {
-  const [rawValue, setRawValue] = useState(value ? formatPhoneForDisplay(value) : '')
+function PhoneInput({ value, onChange, initialRawValue, label = 'Telefon nömrəsi', required = false }) {
+  const [rawValue, setRawValue] = useState(initialRawValue || (value ? formatPhoneForDisplay(value) : ''))
   const [touched, setTouched] = useState(false)
+  const isFirstRender = useRef(true)
 
   useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false
+      return
+    }
     if (value && normalizePhone(rawValue) !== value) {
       setRawValue(formatPhoneForDisplay(value))
     }
@@ -27,7 +35,7 @@ function PhoneInput({ value, onChange, label = 'Telefon nömrəsi', required = f
   function handleChange(e) {
     const next = e.target.value
     setRawValue(next)
-    onChange(normalizePhone(next) || '')
+    onChange(normalizePhone(next) || '', next)
   }
 
   function handleBlur() {

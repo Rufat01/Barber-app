@@ -23,6 +23,9 @@ function NewReservation() {
   // müştəri "seçilmiş kart" kimi deyil, olduğu kimi (yazılan mətnlə) bərpa olunsun deyə.
   const [customerMode, setCustomerMode] = useState(presetCustomer ? 'search' : draft?.customerMode || 'search')
   const [customerQuery, setCustomerQuery] = useState(presetCustomer ? '' : draft?.customerQuery || '')
+  // Telefon nömrəsi tam yazılana qədər PhoneInput normalize edilmiş `phone`-u boş göndərir
+  // (bax PhoneInput.jsx) — ona görə yarımçıq yazılmış rəqəmlər ayrıca xam mətn kimi saxlanılır.
+  const [phoneRaw, setPhoneRaw] = useState(presetCustomer ? '' : draft?.phoneRaw || '')
   const [timeSlots, setTimeSlots] = useState([])
   const [takenTimes, setTakenTimes] = useState(new Set())
   const [error, setError] = useState('')
@@ -39,14 +42,15 @@ function NewReservation() {
     setTime(freshDraft?.time || '')
     setCustomerMode(presetCustomer ? 'search' : freshDraft?.customerMode || 'search')
     setCustomerQuery(presetCustomer ? '' : freshDraft?.customerQuery || '')
+    setPhoneRaw(presetCustomer ? '' : freshDraft?.phoneRaw || '')
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.key])
 
   // Doldurulan sahələri rezervasiya tamamlanana qədər saxlamaq üçün hər dəyişiklikdə
   // qaralamanı yeniləyir.
   useEffect(() => {
-    saveReservationDraft(barbershop.id, { fullName, phone, date, time, customerMode, customerQuery })
-  }, [barbershop.id, fullName, phone, date, time, customerMode, customerQuery])
+    saveReservationDraft(barbershop.id, { fullName, phone, date, time, customerMode, customerQuery, phoneRaw })
+  }, [barbershop.id, fullName, phone, date, time, customerMode, customerQuery, phoneRaw])
 
   // CustomerPicker `search` rejimində, seçim edilmədən sadəcə axtarış mətni yazılıbsa,
   // "seçilmiş kart" kimi deyil, məhz həmin mətnlə (əl ilə yazma UI-sında deyil, axtarış
@@ -124,11 +128,13 @@ function NewReservation() {
           initialCustomer={initialCustomerForPicker}
           initialMode={presetCustomer ? 'search' : customerMode}
           initialQuery={presetCustomer ? '' : customerQuery}
-          onChange={({ fullName: nextName, phone: nextPhone, mode: nextMode, query: nextQuery }) => {
+          initialPhoneRaw={presetCustomer ? '' : phoneRaw}
+          onChange={({ fullName: nextName, phone: nextPhone, mode: nextMode, query: nextQuery, phoneRaw: nextPhoneRaw }) => {
             setFullName(nextName)
             setPhone(nextPhone)
             if (nextMode) setCustomerMode(nextMode)
             if (nextQuery !== undefined) setCustomerQuery(nextQuery)
+            if (nextPhoneRaw !== undefined) setPhoneRaw(nextPhoneRaw)
           }}
         />
 
