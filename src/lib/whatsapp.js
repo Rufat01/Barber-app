@@ -31,7 +31,7 @@ export function buildReservationMessage({
     `* Rezervasiya tarixi: ${formatDateAzShort(date)}, ${time}`,
     `* Rezervasiya müddəti: ${formatDuration(services)}`,
     ``,
-    `Filial ilə əlaqə üçün: ${contactPhoneDisplay}`,
+    `Əlaqə üçün: ${contactPhoneDisplay}`,
   ].join('\n')
 }
 
