@@ -24,14 +24,12 @@ export function buildReservationMessage({
   const serviceNames = services.map((s) => s.name).join(', ')
 
   return [
-    `*${salonName}* sizi salamlayır.`,
     `Hörmətli ${customerName}, sizin *${barberName}* ilə *${serviceNames}* rezervasiyanız təsdiq edildi.`,
     ``,
-    `* Məkan: ${salonName}`,
-    `* Rezervasiya tarixi: ${formatDateAzShort(date)}, ${time}`,
-    `* Rezervasiya müddəti: ${formatDuration(services)}`,
+    `• Rezervasiya tarixi: *${formatDateAzShort(date)}, ${time}*`,
+    `• Rezervasiya müddəti: ${formatDuration(services)}`,
     ``,
-    `Əlaqə nömrəsi: ${contactPhoneDisplay}`,
+    `Əlaqə: ${contactPhoneDisplay}`,
   ].join('\n')
 }
 
